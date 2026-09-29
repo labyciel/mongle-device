@@ -12,21 +12,57 @@ dandanmong:["................","................",".....######.....","...##o#oo#
 flamehorn:["#..............#","##............##",".##..######..##.","..##oooooooo##..","..#oo##oo##oo#..",".#ooo#.oo#.ooo#.",".#oooooooooooo#.",".#oo########oo#.","..#o#.#..#.#o#..","..#oo######oo#..",".###oooooooo###.","#oo#oooooooo#oo#","#o#oooo##oooo#o#","..#ooo#..#ooo#..","..#oo#....#oo#..",".####......####."],
 ironshell:["................","....########....","..##o#o##o#o##..",".#o#oo#oo#oo#o#.","#oo#oo#oo#oo#oo#","################","#oooooooooooooo#","#oo##oooooo##oo#","#oo#.#oooo#.#oo#","#oooooooooooooo#","#ooo########ooo#",".#oooooooooooo#.","################","##oo#......#oo##","#ooo#......#ooo#","#####......#####"],
 galewing:["................","#......##......#","##....####....##","#o#..#oooo#..#o#","#oo##o#oo#o##oo#","#ooo#o.oo.o#ooo#",".#oo#oooooo#oo#.","..#o#oo##oo#o#..","...##oooooo##...",".....#oooo#.....","....#oooooo#....","....#oo##oo#....",".....#o##o#.....","....##.##.##....","....#..#...#....","................"],
-scruffy:["................","................","...#..#...#.....","....#.#..#......","....########....","...#oooooooo#...","..#oooooooooo#..","..#o##oooo##o#..","..#oooooooooo#..",".#ooo#oooo#ooo#.",".#oooo####oooo#.",".#oooooooooooo#.","#oooooooooooooo#","#oo#oooooooo#oo#",".##.########.##.","................"],
 mukfist:["................",".....######.....","...##oooooo##...","..#oooooooooo#..","..#o##oooo##o#..","..#oo#oooo#oo#..","..#oooooooooo#..","..#ooo####ooo#..","###oooooooooo###","#oo#oooooooo#oo#","#ooo#oooooo#ooo#","#ooo#oooooo#ooo#",".###oooooooo###.","...#oo#..#oo#...","...###....###...","................"],
 mukpebble:["................","................","......####......","....##oooo##....","...#oooooooo#...","..#oooooooooo#..","..#oo##oo##oo#..",".#ooo#.oo#.ooo#.",".#oooooooooooo#.",".#oooo#oo#oooo#.",".#ooooo##ooooo#.",".#oooooooooooo#.","..#oooooooooo#..","..##oo####oo##..","...###....###...","................"],
 jjicrab:["................","##............##","#o#..........#o#","#oo#........#oo#",".#o#........#o#.","..##.######.##..","...##oooooo##...","..#o#oooooo#o#..",".#o##########o#.",".#oo#.#oo#.#oo#.",".#oooooooooooo#.","..#oo######oo#..","..#oooooooooo#..","...#o#.##.#o#...","..##.#....#.##..","................"],
 jjibunny:["....#......#....","...#o#....#o#...","...#o#....#o#...","...#o#....#o#...","....#o####o#....","...#oooooooo#...","..#oo#oooo#oo#..","..#oo#oooo#oo#..","..#oooo##oooo#..","...#oooooooo#...","..#oooooooooo#..",".#o#oooooooo#o#.","..#oooooooooo#..","...#ooo##ooo#...","..###......###..","................"],
 ppashield:["................","................","#.#.#......#.#.#","#o#o#......#o#o#","#ooo#.####.#ooo#",".#ooo#oooo#ooo#.","..#oooooooooo#..","..#o##oooo##o#..","..#o#.#oo#.#o#..","..############..","..#oooooooooo#..","..#o#oooooo#o#..","..#oooooooooo#..","..############..","...##......##...","................"],
-ppahand:["................","...#.#.#.#......","...#o#o#o#......","...#o#o#o#..##..","..##o#o#o####o#.","..#ooooooooo#o#.",".#oooooooooooo#.",".#oo##oooo##oo#.",".#oo#.#oo#.#oo#.",".#oooooooooooo#.",".#ooooo##ooooo#.","..#oooooooooo#..","...#oooooooo#...","....#oo##oo#....","....###..###....","................"]
+ppahand:["................","...#.#.#.#......","...#o#o#o#......","...#o#o#o#..##..","..##o#o#o####o#.","..#ooooooooo#o#.",".#oooooooooooo#.",".#oo##oooo##oo#.",".#oo#.#oo#.#oo#.",".#oooooooooooo#.",".#ooooo##ooooo#.","..#oooooooooo#..","...#oooooooo#...","....#oo##oo#....","....###..###....","................"],
+b_drop:["................", "......##.##.....", ".....#oo#oo#....", "........#.......", "......####......", "....##oooo##....", "...#oooooooo#...", "..#oooooooooo#..", "..#oo#oooo#oo#..", ".#ooo#oooo#ooo#.", ".#oooooooooooo#.", ".#ooooo##ooooo#.", ".#oooooooooooo#.", "..#oooooooooo#..", "...##########...", "................"],
+b_fluff:["................", "................", "................", "...#........#...", "...##......##...", "...#o######o#...", "..#oooooooooo#..", ".#oooooooooooo#.", ".#oo##oooo##oo#.", ".#oooooooooooo#.", "#ooooo#oo#ooooo#", "#oooooo##oooooo#", "#oooooooooooooo#", ".#oooooooooooo#.", "..#o#o####o#o#..", "...#.#....#.#..."],
+b_slug:["................", "................", "................", "................", "................", ".#...#..........", "..#.#...........", "..###...........", ".#ooo##.........", "#o#o#oo##.......", "#oooooooo##.....", "#oo##ooooooo##..", "#ooooooooooooo#.", ".#oooooooooooo#.", "..##############", "................"],
+r_horn:["................", "................", "................", "....#......#....", "....##....##....", "....########....", "...#oooooooo#...", "..#oooooooooo#..", "..#o#.oooo#.o#..", "..#o##oooo##o#..", "..#oooo##oooo#..", ".#oooooooooooo#.", ".#oooooooooooo#.", "..#oooooooooo#..", "...##o#..#o##...", "...###....###..."],
+r_wing2:["................", "................", "................", "................", "................", "....########....", "...#oooooooo#...", "#.#oooooooooo#.#", "###o#.oooo#.o###", "#o#o##oooo##o#o#", ".##oooo##oooo##.", ".#oooooooooooo#.", ".#oooooooooooo#.", "..#oooooooooo#..", "...##o#..#o##...", "...###....###..."],
+r_shell2:["................", "................", ".....######.....", "...##o#oo#o##...", "..#o#oo##oo#o#..", ".##############.", "...#oooooooo#...", "..#oooooooooo#..", "..#o#.oooo#.o#..", "..#o##oooo##o#..", "..#oooo##oooo#..", ".#oooooooooooo#.", ".#oooooooooooo#.", "..#oooooooooo#..", "...##o#..#o##...", "...###....###..."],
+r_guard:["................", "................", "................", ".....#....#.....", ".....##..##.....", "....########....", "...#oooooooo#...", "..#oooooooooo#..", "..#o#.oooo#.o#..", "..#o##oooo##o#..", "..#oooo##oooo#..", ".#oooo####oooo#.", ".#ooo#oooo#ooo#.", "..#oo#oooo#oo#..", "...##o####o##...", "...###....###..."],
+c_muk_atk:["................", ".###........###.", "#o#o#......#o#o#", "#ooo#.####.#ooo#", ".####oooooo####.", "..#oooooooooo#..", ".#oooooooooooo#.", ".#o##oooooo##o#.", ".#oo#.oooo#.oo#.", ".#oo##oooo##oo#.", ".#ooooo##ooooo#.", ".#oooooooooooo#.", "..#oooooooooo#..", "..#oooooooooo#..", "..##o##..##o##..", "..####....####.."],
+c_muk_def:["................", "................", ".....######.....", "...##o#oo#o##...", "..#o#oo##oo#o#..", ".#oo#oooooo#oo#.", "################", "#oooooooooooooo#", "#ooo###oo###ooo#", "#oooooooooooooo#", "#oooooo##oooooo#", ".#oooooooooooo#.", ".#oooooooooooo#.", "..#oooooooooo#..", "..##o##..##o##..", "..####....####.."],
+c_muk_all:["................", "................", "##............##", "#o#..######..#o#", ".#o##oooooo##o#.", "..#oooooooooo#..", ".#oooooooooooo#.", ".#oo#.oooo#.oo#.", ".#oo##oooo##oo#.", ".#oooo#oo#oooo#.", ".#ooooo##ooooo#.", ".#oooooooooooo#.", "..#oooooooooo#..", "...#oooooooo#...", "...##o#..#o##...", "...###....###..."],
+c_jji_def:["................", "................", ".###........###.", "#oo.#......#.oo#", "#ooo#......#ooo#", ".###.######.###.", "..#.#oooooo#.#..", "...#oooooooo#...", "..#oo#.oo#.oo#..", "..#oo##oo##oo#..", "..#oooo##oooo#..", ".#oooooooooooo#.", ".#o#o#o##o#o#o#.", "..#oooooooooo#..", "..#.#.#..#.#.#..", "................"],
+c_jji_all:["...#........#...", "...##......##...", "...#o#....#o#...", "...#o#....#o#...", "....#o#..#o#....", "....#oo##oo#....", "...#oooooooo#...", "..#oooooooooo#..", "..#o#.oooo#.o#..", "..#o##oooo##o#..", "..#oooo##oooo#..", "..#oooooooooo#..", ".#o#oooooooo#o#.", "..#oooooooooo#..", "...##o#..#o##...", "...###....###..."],
+j_blade_arms:["................", "#..............#", "##............##", ".##..........##.", "..##.######.##..", "...##oooooo##...", "..#oooooooooo#..", ".#o##oooooo##o#.", ".#oo#.oooo#.oo#.", ".#oo##oooo##oo#.", ".#ooooo##ooooo#.", ".#oooooooooooo#.", "..#oooooooooo#..", "...##o#..#o##...", "...###....###...", "................"],
+j_crest_bird:["....#......#....", ".....#....#.....", "......#..#......", ".....######.....", "....#oooooo#....", "...#o##oo##o#...", "...#o#.oo#.o#...", "...#o##oo##o#...", "#..#ooo##ooo#..#", "##.#oooooooo#.##", "#o##oooooooo##o#", ".#oooooooooooo#.", "..###oooooo###..", "....#oooooo#....", ".....##..##.....", "....###..###...."],
+j_cross_horn:["................", "..##........##..", "...##......##...", "....##....##....", ".....##..##.....", "......####......", ".....#o##o#.....", "...##oooooo##...", "..#oooooooooo#..", "..#o##oooo##o#..", "..#o#.oooo#.o#..", "..#oooo##oooo#..", ".#o#oooooooo#o#.", "..#oooooooooo#..", "...##o#..#o##...", "...###....###..."],
+c_ppa_atk:["................", ".......##.......", "......#oo#......", ".....######.....", "....#oooooo#....", "#..#oooooooo#..#", "##.#o#.oo#.o#.##", "#o##o##oo##o##o#", "#oo#ooo##ooo#oo#", "#ooo#oooooo#ooo#", ".#oo#oooooo#oo#.", "..###oooooo###..", "....#oooooo#....", "....#oooooo#....", ".....######.....", "....##....##...."],
+c_ppa_def:["......####......", "....##oooo##....", "..##oo#oo#oo##..", ".#oo#oo##oo#oo#.", "################", ".......##.......", "....########....", "...#oooooooo#...", "..#o#.oooo#.o#..", "..#o##oooo##o#..", "..#oooo##oooo#..", ".#oooooooooooo#.", ".#oooooooooooo#.", "..#oooooooooo#..", "...##o#..#o##...", "...###....###..."],
+c_ppa_all:["................", "................", "................", "...#.#.#.#.#....", "..#o#o#o#o#o#...", "..#ooooooooo#...", ".#ooooooooooo#..", ".#oo#.ooo#.oo#..", ".#oo##ooo##oo#..", ".#oooo###oooo#..", ".#ooooooooooo#..", "#o#ooooooooo#o#.", ".#ooooooooooo#..", "..#ooooooooo#...", "..##o#...#o##...", "..###.....###..."]
 };
-const spriteOf = form => S[(C.FORMS[form] || {}).sprite || form] || S.mongsil;
+// key는 모습(look) 이름이거나 예전 형태(form) 이름
+const spriteOf = key => S[key] || S[(C.FORMS[key] || {}).sprite] || S.b_drop;
+const lookOf = o => (o && (o.look || o.form)) || 'egg';
+// 화면에 보이는 종류 표시: 모습 이름(C.LOOKS)은 개발용이라 화면에 쓰지 않고 단계·타입·형태로만 표시
+function kindText(o) {
+  if (!o) return '';
+  const stage = o.stage || 'adult';
+  if (stage === 'egg') return '알';
+  if (stage === 'baby') return '유체';
+  if (stage === 'rookie') return `아성체 · ${o.form === 'dandanmong' ? '방어' : '공격'} 쪽`;
+  return `${o.type ? C.TYPES[o.type].name + ' 타입' : '성체'}${o.style ? ' · ' + C.STYLES[o.style].name : ''}`;
+}
 // 공격 손 (위에서부터 묵·찌·빠). '#' 테두리, 'o' 밝은 속. 손 모양 점만 그리고 주변은 몬스터가 그대로 보임
 const HANDS = {
   muk: [".#.#.#.#.","#o#o#o#o#","#o#o#o#o#","#####o#o#","#oooo#oo#","#####ooo#",".#ooooo#.","..#####.."],
   jji: [".#...#..","#o#.#o#.","#o#.#o#.",".#o#o#..","##ooo##.","#oooooo#","#####oo#",".#ooooo#","..#####."],
   ppa: [".....#.....","...##o##...","..#o#o#o##.","..#o#o#o#o#",".##o#o#o#o#","#o#ooooooo#","#ooooooooo#",".#ooooooo#.","..#######.."]
 };
+// 공격형이 공격할 때 쓰는 큰 손 (참고 그림 기반 12칸 크기)
+const HANDS_BIG = {
+  muk: [".##.##.##...","#oo#oo#oo##.","#oo#oo#oo#o#","#oo#oo#oo#o#","#oo#oo#oo#o#","#######oo#o#","#oooooo#ooo#","########ooo#","#ooooooooo#.",".#oooooooo#.","..#oooooo#..","...######..."],
+  jji: [".##.....##.","#oo#...#oo#","#oo#...#oo#",".#oo#.#oo#.",".#oo#.#oo#.","..#oo#oo#..",".#oooooo###","########oo#","#ooooooo#o#","########oo#",".#ooooooo#.","..#######.."],
+  ppa: ["......#......","....##o##....","...#o#o#o#...","...#o#o#o##..","...#o#o#o#o#.","...#o#o#o#o#.",".#.#o#o#o#o#.","#o#oooooooo#.","#oooooooooo#.",".#ooooooooo#.","..#ooooooo#..","...#######..."]
+};
+// 체력바: 1칸 = 체력 35, 한 줄 16칸 넘으면 아래 줄로
+const HP_PER_CELL = 35, HP_ROW = 16;
 // 배틀 연출 타이밍 (ms): 손이 톡 붙는 순간 / 손이 사라지는 순간 / 깜빡임 끝 / 다음 공격
 const HIT = { land: 80, handEnd: 450, end: 720, next: 950 };
 const POOP = ["...#....","..#o#...","..###...",".#ooo#..",".#####..","#ooooo#.","#######.","........"];
@@ -34,10 +70,11 @@ const POOP = ["...#....","..#o#...","..###...",".#ooo#..",".#####..","#ooooo#.",
 // ---------- 상태 ----------
 const TOKEN_KEY = 'mongle-token';
 let token = null; try { token = localStorage.getItem(TOKEN_KEY); } catch (e) {}
-let nick = '', pet = null, registered = null, allowFast = true;
+let nick = '', pet = null, mine = [], maxEntries = 2, allowFast = true;
+let fighterId = null, picks = [];   // 출전할 내 몽글이, 무작위로 뽑힌 상대들
 let offset = 0;            // 서버시계 - 내 시계 (ms)
 let mode = 'idle', train = null, battle = null, evo = null, busy = false;
-let arena = [], npcs = C.NPCS;
+let arena = [];
 let wx = 8, facing = 1, lastStep = 0;
 const serverNow = () => Date.now() + offset;
 
@@ -66,17 +103,21 @@ function apply(data) {
     if (data.info && data.info.evos && data.info.evos.length) {
       const e = data.info.evos[data.info.evos.length - 1];
       evo = { from: e.from, to: e.to, until: performance.now() + 1800 };
-      setTimeout(() => toast(`진화했어요! ${C.FORMS[e.from].name} → ${C.FORMS[e.to].name}`), 1800);
+      setTimeout(() => toast(pet.stage === 'adult' ? `성체로 진화했어요! ${kindText(pet)}` : `${C.STAGE_KO[pet.stage]}(으)로 진화했어요!`), 1800);
     } else if (data.info && data.info.ups) toast(`레벨 업! Lv.${pet.level}`);
     void prevForm;
   }
-  if ('registered' in data) registered = data.registered;
+  if ('mine' in data) {
+    mine = data.mine || [];
+    if (!mine.some(e => e.id === fighterId)) fighterId = mine.length ? mine[0].id : null;
+  }
+  if (data.maxEntries) maxEntries = data.maxEntries;
   if ('allowFast' in data) allowFast = data.allowFast;
   if (data.nick) nick = data.nick;
 }
-async function run(fn) {
+async function run(fn, onErr = toast) {
   if (busy) return; busy = true; render();
-  try { await fn(); } catch (e) { toast(e.message); }
+  try { await fn(); } catch (e) { onErr(e.message); }
   busy = false; render();
 }
 
@@ -90,7 +131,7 @@ function show() {
   else if (!pet) { $('lcdL').textContent = 'NEW EGG'; $('lcdR').textContent = ''; }
   render();
 }
-function logoutLocal() { token = null; pet = null; registered = null; try { localStorage.removeItem(TOKEN_KEY); } catch (e) {} mode = 'idle'; train = null; battle = null; show(); }
+function logoutLocal() { token = null; pet = null; mine = []; fighterId = null; picks = []; try { localStorage.removeItem(TOKEN_KEY); } catch (e) {} mode = 'idle'; train = null; battle = null; show(); }
 
 // ---------- 로그인 ----------
 async function doAuth(kind) {
@@ -121,6 +162,18 @@ function flush(invert) {
   ctx.fillStyle = bg; ctx.fillRect(0, 0, cv.width, cv.height);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { let v = fb[y * W + x]; if (invert) v = v ? 0 : 2; ctx.fillStyle = v === 2 ? on : v === 1 ? mid : v === 3 ? hi : gh; ctx.fillRect(x * P, y * P, P - 1, P - 1); }
 }
+// 방어막: 몸 바로 바깥 한 겹 (상하좌우로 맞닿은 빈칸)
+function shield(g, ox, oy, flip, v) {
+  const w = g[0].length, h = g.length, filled = (x, y) => y >= 0 && y < h && x >= 0 && x < w && g[y][flip ? w - 1 - x : x] !== '.';
+  for (let y = -1; y <= h; y++) for (let x = -1; x <= w; x++)
+    if (!filled(x, y) && (filled(x - 1, y) || filled(x + 1, y) || filled(x, y - 1) || filled(x, y + 1))) px(ox + x, oy + y, v);
+}
+// 최대 체력만큼 칸, 남은 체력만큼 진한 칸 (남아 있으면 최소 1칸)
+function hpBar(x0, cur, max) {
+  const n = Math.max(4, Math.round(max / HP_PER_CELL)), on = cur <= 0 ? 0 : Math.max(1, Math.ceil(n * cur / max));
+  for (let i = 0; i < n; i++) px(x0 + (i % HP_ROW), i < HP_ROW ? 1 : 2, i < on ? 2 : 1);
+}
+const styleOf = form => (C.FORMS[form] || {}).style;
 function drawSprite(canvas, form) {
   const c = canvas.getContext('2d'); canvas.width = 16; canvas.height = 16;
   const cs = getComputedStyle(document.documentElement);
@@ -133,7 +186,7 @@ function frame(t) {
   if (!pet) spr(S.egg, 12, 2, false);
   else if (evo && t < evo.until) { const ph = Math.floor(t / 150) % 2; spr(spriteOf(ph ? evo.to : evo.from), 12, 2, false); inv = ph === 1; }
   else if (mode === 'train' && train) {
-    spr(spriteOf(pet.form), 12, 0, false);
+    spr(spriteOf(lookOf(pet)), 12, 0, false);
     const x0 = 2, len = C.BAR, p = train.params;
     for (let i = 0; i < len; i++) { px(x0 + i, 17, 1); px(x0 + i, 19, 1); }
     rect(x0 + p.z0, 17, p.zw, 3, 1); rect(x0 + p.zc - 1, 17, 3, 3, 2);
@@ -144,11 +197,16 @@ function frame(t) {
     const since = fx ? t - fx.at : 0, handOn = fx && since < HIT.handEnd;
     const blink = fx && !fx.miss && !handOn && Math.floor(t / 70) % 2;          // 맞은 쪽 깜빡임
     const dodge = fx && fx.miss && !handOn ? 3 : 0;                              // 빗나가면 살짝 피함
-    if (!(blink && fx.target === 'me')) spr(spriteOf(b.me.form), 2 - (fx && fx.target === 'me' ? dodge : 0), 4, false);
-    if (!(blink && fx.target === 'op')) spr(spriteOf(b.op.form), 22 + (fx && fx.target === 'op' ? dodge : 0), 4, true);
+    [['me', b.me, 2, false], ['op', b.op, 22, true]].forEach(([who, m, x0, flip]) => {
+      const hit = fx && fx.target === who, g = spriteOf(lookOf(m)), ox = x0 + (hit ? (who === 'me' ? -dodge : dodge) : 0);
+      // 방어형은 방어막을 두름. 맞는 동안엔 방어막이 진하게 번쩍
+      if (styleOf(m.form) === 'def') shield(g, ox, 4, flip, hit && !fx.miss && (blink || (handOn && since >= HIT.land)) ? 2 : 1);
+      if (!(blink && hit)) spr(g, ox, 4, flip);
+    });
     if (handOn) {
       // 공격하는 쪽 타입의 손을 상대 몬스터 몸 위에 덮어씌움 (손 모양 점만)
-      const g = HANDS[fx.type] || HANDS.muk, w = g[0].length, h = g.length, flip = fx.target === 'me';
+      const set = fx.big ? HANDS_BIG : HANDS;                                      // 공격형은 큰 손
+      const g = set[fx.type] || set.muk, w = g[0].length, h = g.length, flip = fx.target === 'me';
       const ox = (fx.target === 'op' ? 30 : 10) - Math.floor(w / 2), oy = 11 - Math.floor(h / 2) + (since < HIT.land ? -2 : 0);
       for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
         const c = g[y][flip ? w - 1 - x : x];
@@ -157,15 +215,14 @@ function frame(t) {
       if (fx.strong && since >= HIT.land && Math.floor(t / 90) % 2)             // 상성 유리: 네 귀퉁이 번쩍
         [[-2, -2], [w + 1, -2], [-2, h + 1], [w + 1, h + 1]].forEach(([dx, dy]) => px(ox + dx, oy + dy, 2));
     }
-    const hb = (x, cur, max) => { const w = Math.max(0, Math.round(16 * cur / max)); for (let i = 0; i < 16; i++) px(x + i, 1, i < w ? 2 : 1); };
-    hb(2, b.mh, b.me.hp); hb(22, b.oh, b.op.hp);
+    hpBar(2, b.mh, b.me.hp); hpBar(22, b.oh, b.op.hp);
   }
   else if (pet.stage === 'egg') { const w = Math.floor(t / 500) % 4; spr(S.egg, 12 + (w === 1 ? 1 : w === 3 ? -1 : 0), 2, false); }
   else {
     if (t - lastStep > 700) { lastStep = t; const d = Math.random() < .5 ? -1 : 1; wx = C.clamp(wx + d, 1, 14); facing = d; }
-    const bob = Math.floor(t / 350) % 2; spr(spriteOf(pet.form), wx, 2 + bob, facing < 0);
+    const bob = Math.floor(t / 350) % 2; spr(spriteOf(lookOf(pet)), wx, 2 + bob, facing < 0);
     const spots = [[24, 12], [32, 12], [24, 3], [32, 3]]; for (let i = 0; i < pet.poops; i++) spr(POOP, spots[i][0], spots[i][1], false);
-    if (pet.hunger < 20 || pet.mood < 20) { rect(38, 1, 1, 4, 2); px(38, 6, 2); }
+    if (pet.hunger < 20 || pet.mood < 20) { rect(1, 1, 1, 4, 2); px(1, 6, 2); }   // 배고픔·심심 알림 (오른쪽 위는 묵·찌·빠 자리)
   }
   flush(inv);
   requestAnimationFrame(frame);
@@ -181,94 +238,184 @@ function render() {
   $('whoNick').textContent = nick;
   $('sName').textContent = v.name;
   $('sForm').textContent = v.stage === 'egg' ? '알 · 부화까지 품어 주세요'
-    : v.stage === 'adult' ? `${f.name} · ${C.TYPES[v.type].name} 타입 · ${C.STYLES[v.style].name}` : f.name;
+    : kindText(v);
   renderTendency(v);
   $('sStage').textContent = C.STAGE_KO[v.stage]; $('sLv').textContent = v.level;
-  meter('mXp', 'nXp', v.exp, C.need(v.level), 'xp');
+  const maxed = v.level >= C.RULES.maxLevel;
+  meter('mXp', 'nXp', maxed ? 1 : v.exp, maxed ? 1 : C.need(v.level), 'xp'); if (maxed) $('nXp').textContent = 'MAX';
   meter('mHun', 'nHun', v.hunger, 100); meter('mMood', 'nMood', v.mood, 100); meter('mEn', 'nEn', v.energy, 100);
   const nextL = v.stage === 'egg' ? 10 : v.stage === 'baby' ? 30 : v.stage === 'rookie' ? 50 : null;
-  $('sNext').textContent = nextL ? `Lv.${nextL}에 다음 단계로 진화해요.` : '다 자랐어요. 결투장에 등록할 수 있어요.';
+  const onArena = isOnArena(v);
+  $('sNext').textContent = nextL ? `Lv.${nextL}에 다음 단계로 진화해요.`
+    : onArena ? '결투장에 올라갔어요. 이제 새 알을 받아 다음 몽글이를 키워 보세요.'
+    : '다 자랐어요! 더 이상 자라지 않아요. 결투장 탭에서 등록해 랭킹에 도전하세요.';
   $('vHp').textContent = bs.hp; $('vAtk').textContent = bs.atk; $('vDef').textContent = bs.def; $('vSpd').textContent = bs.spd;
-  $('vMis').textContent = v.mistakes; $('vRec').textContent = `${v.wins}승 ${v.losses}패`;
-  const egg = v.stage === 'egg', lock = busy || mode !== 'idle';
-  $('bFeed').disabled = egg || lock; $('bPlay').disabled = egg || lock; $('bClean').disabled = egg || lock || v.poops === 0;
-  $('bMainLbl').textContent = egg ? '품기' : '훈련'; $('bMain').disabled = lock;
+  const egg = v.stage === 'egg', adult = v.stage === 'adult', lock = busy || mode !== 'idle';
+  // 성체는 더 돌보거나 키울 수 없음
+  $('bFeed').disabled = egg || adult || lock; $('bPlay').disabled = egg || adult || lock; $('bClean').disabled = egg || adult || lock || v.poops === 0;
+  $('bMainLbl').textContent = egg ? '품기' : '훈련'; $('bMain').disabled = adult || lock;
   document.querySelectorAll('[data-train]').forEach(b => b.disabled = egg || lock || v.energy < C.RULES.trainCost);
-  $('trainCard').hidden = egg;
+  if (egg || adult || lock) closeTrainPop();
+  // 새 알 받기 안내
+  const names = mine.map(e => e.name).join(', ');
+  $('resetHint').textContent = adult && onArena ? `결투장의 몽글이(${names})는 그대로 남아요. 새 알로 다음 몽글이를 키워 보세요.`
+    : adult ? `아직 결투장에 등록하지 않았어요. 새 알을 받으면 ${v.name}은(는) 사라져요.`
+    : mine.length ? `지금 키우는 ${v.name}은(는) 사라져요. 결투장의 몽글이(${names})는 그대로 남아요.`
+    : `지금 키우는 ${v.name}은(는) 사라져요.`;
+  $('resetWarn').textContent = adult && onArena ? '새 알을 받을까요?' : `${v.name}은(는) 사라지고 되돌릴 수 없어요.`;
+  $('bReset').className = adult && onArena ? 'btn primary' : 'btn';
+  $('resetCard').hidden = !adult;   // 새 알 받기는 성체일 때만
+  if (!adult) { $('resetConfirm').hidden = true; $('bReset').hidden = false; }
   $('fastCard').hidden = !allowFast;
   $('bFast').textContent = v.fast ? '끄기' : '켜기'; $('bFast').setAttribute('aria-pressed', !!v.fast); $('bFast').className = v.fast ? 'btn primary' : 'btn'; $('bFast').disabled = lock;
   $('lcdL').textContent = `${v.name} Lv.${v.level}`;
-  $('lcdR').textContent = egg ? '부화 대기' : `${f.name}${v.poops ? ' · 똥' + v.poops : ''}`;
+  $('lcdR').textContent = egg ? '부화 대기' : `${v.stage === 'adult' ? kindText(v) : C.STAGE_KO[v.stage]}${v.poops ? ' · 똥' + v.poops : ''}`;
   renderArena(v);
 }
+// 기기 화면 오른쪽 위 묵·찌·빠: 가장 높은 성향만 검게 (성체는 정해진 타입). 알·훈련·배틀 중엔 숨김
 function renderTendency(v) {
-  const box = $('tendCard');
-  box.hidden = v.stage === 'egg';
-  if (v.stage === 'egg') return;
+  const box = $('tend'), show = !!v && v.stage !== 'egg' && mode === 'idle';
+  box.hidden = !show;
+  if (!show) return;
+  const total = C.TYPE_ORDER.reduce((s, t) => s + (v.care[t] || 0), 0);
+  const top = v.stage === 'adult' ? v.type : total ? C.topType(v.care) : null;
   const pct = C.tendency(v.care);
-  C.TYPE_ORDER.forEach(t => { $('tb-' + t).style.width = pct[t] + '%'; $('tn-' + t).textContent = pct[t] + '%'; });
-  if (v.stage === 'adult') {
-    const T = C.TYPES[v.type], beatsMe = C.TYPE_ORDER.find(t => C.TYPES[t].beats === v.type);
-    $('tendHint').textContent = `타입이 ${T.name}(으)로 정해졌어요. ${C.TYPES[T.beats].name}에 강하고 ${C.TYPES[beatsMe].name}에 약해요.`;
-  } else {
-    const t = C.topType(v.care), st = C.decideStyle(v);
-    $('tendHint').textContent = `지금 성체가 되면: ${C.TYPES[t].name} 타입 · ${C.STYLES[st].name}. 밥은 묵, 훈련은 찌, 놀아주기는 빠 성향을 키워요.`;
-  }
+  box.querySelectorAll('span').forEach(el => { el.classList.toggle('top', el.dataset.t === top); });
+  box.setAttribute('aria-label', top ? `성향: ${C.TYPES[top].name}` + (v.stage === 'adult' ? ' 타입' : ` (묵 ${pct.muk}%, 찌 ${pct.jji}%, 빠 ${pct.ppa}%)`) : '성향: 아직 없음');
 }
+// 지금 키우는 몽글이가 결투장에 올라가 있는지 (알을 받은 시각으로 구분)
+const entryOf = v => v ? mine.find(e => e.born === v.born) || null : null;
+const isOnArena = v => !!entryOf(v);
+const energyOf = e => C.arenaEnergy(e, serverNow());
+const fighter = () => mine.find(e => e.id === fighterId) || null;
+const rankText = e => (e.tied ? '공동 ' : '') + e.rank + '위';
+
+// 무작위 상대 3마리 (내 몽글이 제외). 목록이 바뀌어 사라진 상대는 채워 넣음
+function refreshPicks(force) {
+  const pool = arena.filter(o => !o.mine);
+  const alive = force ? [] : picks.filter(id => pool.some(o => o.id === id));
+  const rest = pool.filter(o => !alive.includes(o.id)).map(o => o.id);
+  for (let i = rest.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [rest[i], rest[j]] = [rest[j], rest[i]]; }
+  picks = alive.concat(rest).slice(0, C.RULES.pickCount);
+}
+
 function renderArena(v) {
   v = v || pet; if (!v) return;
-  const adult = v.stage === 'adult', lock = busy || mode !== 'idle';
-  $('bReg').disabled = !adult || lock;
-  $('bReg').textContent = registered ? '현재 상태로 등록 갱신' : '현재 상태로 결투장 등록';
-  $('regInfo').textContent = !adult ? `성체(Lv.50)가 되면 등록할 수 있어요. 지금 Lv.${v.level}.`
-    : registered ? `등록됨 · ${C.FORMS[registered.form].name} Lv.${registered.level} · ${registered.wins}승 ${registered.losses}패` : '아직 등록하지 않았어요.';
+  const adult = v.stage === 'adult', lock = busy || mode !== 'idle', onArena = isOnArena(v), full = mine.length >= maxEntries;
+  // 내 결투장 몽글이 (최대 2)
+  $('slotCount').textContent = `${mine.length}/${maxEntries}`;
+  const box = $('myEntries'); box.innerHTML = '';
+  mine.forEach(e => box.appendChild(entryRow(e, v, { self: true, lock })));
+  const canReg = adult && !onArena, picking = !$('replacePick').hidden;
+  $('bReg').hidden = !canReg || picking;
+  $('bReg').disabled = lock;
+  $('bReg').textContent = full ? `${v.name}(으)로 교체 등록` : `${v.name}을(를) 결투장에 등록`;
+  const f = fighter();
+  $('regInfo').textContent = !mine.length && !adult ? `지금 키우는 ${v.name}이(가) 성체(Lv.50)가 되면 등록할 수 있어요.`
+    : !mine.length ? '다 자란 몽글이를 결투장에 올려 랭킹에 도전하세요.'
+    : canReg && full ? `${v.name}이(가) 다 자랐어요. 자리가 꽉 차서, 등록하려면 한 마리를 내려야 해요.`
+    : canReg ? `${v.name}이(가) 다 자랐어요. 한 자리가 비어 있어요.`
+    : mine.length > 1 ? `출전: ${f ? f.name : '-'}. 위에서 출전할 몽글이를 골라요.`
+    : `새 몽글이를 키우는 동안에도 ${mine[0].name}(으)로 배틀할 수 있어요.`;
+  // 상대 고르기
+  const pl = $('pickList'); pl.innerHTML = '';
+  const pool = arena.filter(o => !o.mine);
+  $('bReroll').disabled = pool.length <= C.RULES.pickCount;
+  $('pickHint').textContent = !pool.length ? '아직 다른 트레이너가 등록한 성체가 없어요.'
+    : !mine.length ? '결투장에 몽글이를 등록하면 도전할 수 있어요.'
+    : f ? `${f.name}(으)로 도전해요. 등록된 성체 중 ${Math.min(C.RULES.pickCount, pool.length)}마리가 무작위로 나와요.` : '';
+  picks.map(id => pool.find(o => o.id === id)).filter(Boolean).forEach(o => pl.appendChild(entryRow(o, v, { challenge: true, lock })));
+  // 랭킹
   const list = $('arenaList'); list.innerHTML = '';
   if (!arena.length) list.innerHTML = '<p class="hint">아직 아무도 등록하지 않았어요. 첫 성체를 올려 보세요.</p>';
-  arena.forEach(o => list.appendChild(foeRow(o, v, lock)));
-  const nl = $('npcList'); nl.innerHTML = ''; npcs.forEach(n => nl.appendChild(foeRow(n, v, lock)));
+  arena.forEach(o => list.appendChild(entryRow(o, v, {})));
 }
-function foeRow(o, v, lock) {
-  const d = document.createElement('div'); d.className = 'foe';
-  const c = document.createElement('canvas'); drawSprite(c, o.form);
+function entryRow(o, v, opt) {
+  const d = document.createElement('div'); d.className = 'foe' + (opt.self ? ' me' : '');
+  const c = document.createElement('canvas'); drawSprite(c, lookOf(o));
   const meta = document.createElement('div'); meta.className = 'meta';
-  const nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = o.name;
+  const nm = document.createElement('div'); nm.className = 'nm';
+  if (o.rank) { const r = document.createElement('span'); r.className = 'rank'; r.textContent = rankText(o); nm.appendChild(r); }
+  nm.appendChild(document.createTextNode(o.name));
   const tag = (txt, cls) => { const t = document.createElement('span'); t.className = 'tag' + (cls ? ' ' + cls : ''); t.textContent = txt; nm.appendChild(t); };
-  if (o.mine) tag('내 몬스터'); if (o.npc) tag('연습'); if (o.usedFast) tag('테스트', 'test');
+  if (o.mine && !opt.self) tag('내 몽글이'); if (o.usedFast) tag('테스트', 'test');
   if (o.type) tag(C.TYPES[o.type].name, 'type');
-  if (!o.mine && v.stage === 'adult' && o.type) {
-    const m = C.typeMult(v.type, o.type);
-    if (m > 1) tag('상성 유리', 'adv'); else if (m < 1) tag('상성 불리', 'dis');
-  }
+  const f = fighter();
+  if (opt.challenge && f && o.type) { const m = C.typeMult(f.type, o.type); if (m > 1) tag('상성 유리', 'adv'); else if (m < 1) tag('상성 불리', 'dis'); }
   const sub = document.createElement('div'); sub.className = 'sub';
-  sub.textContent = `${(C.FORMS[o.form] || {}).name || '?'}${o.style ? ' · ' + C.STYLES[o.style].name : ''} · Lv.${o.level}` + (o.npc ? '' : ` · ${o.trainer} · ${o.wins}승 ${o.losses}패`);
+  sub.textContent = `${kindText(o)} · Lv.${o.level}` + (opt.self ? ` · ${o.wins}승 ${o.losses}패` : ` · ${o.trainer} · ${o.wins}승 ${o.losses}패`);
   const st = document.createElement('div'); st.className = 'st'; st.textContent = `체력 ${o.hp} · 공격력 ${o.atk} · 방어력 ${o.def} · 속도 ${o.spd}`;
   meta.append(nm, sub, st);
+  if (opt.self) {
+    // 남은 도전 횟수 + 출전 고르기
+    const e = energyOf(o), M = C.RULES.arenaMax, en = document.createElement('div'); en.className = 'en';
+    const bar = document.createElement('div'); bar.className = 'bar'; const fill = document.createElement('b');
+    fill.style.width = (100 * e / M) + '%'; if (e < C.RULES.battleCost) fill.className = 'bad'; bar.appendChild(fill);
+    const num = document.createElement('span'), left = C.arenaNextIn(o, serverNow());
+    num.textContent = `도전 ${e}/${M}` + (e < M ? ` · ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')} 뒤 +1` : '');
+    en.append(bar, num); meta.appendChild(en);
+    d.append(c, meta);
+    if (mine.length > 1) {
+      const b = document.createElement('button'); b.className = 'btn pick'; b.textContent = '출전';
+      b.setAttribute('aria-pressed', o.id === fighterId); b.disabled = opt.lock;
+      b.addEventListener('click', () => { fighterId = o.id; renderArena(); });
+      d.appendChild(b);
+    }
+    return d;
+  }
+  if (!opt.challenge) { d.append(c, meta); d.style.gridTemplateColumns = '56px 1fr'; return d; }
   const b = document.createElement('button'); b.className = 'btn primary'; b.textContent = '도전';
-  b.disabled = o.mine || v.stage !== 'adult' || lock || v.energy < C.RULES.battleCost;
+  b.disabled = !f || opt.lock || energyOf(f) < C.RULES.battleCost;
   b.addEventListener('click', () => startBattle(o.id));
   d.append(c, meta, b); return d;
 }
 
 // ---------- 행동 ----------
-const doAction = type => run(async () => { const d = await api('/action', { type }); apply(d); toast(d.msg); });
+// 돌봄 반응은 기기 화면 가운데 위 말풍선으로 (다른 알림은 아래쪽 토스트 그대로)
+let sayT;
+function say(m) { if (!m) return; const t = $('say'); t.textContent = m; t.classList.add('on'); clearTimeout(sayT); sayT = setTimeout(() => t.classList.remove('on'), 2200); }
+const doAction = type => run(async () => { const d = await api('/action', { type }); apply(d); say(d.msg); }, say);
 $('bFeed').onclick = () => doAction('feed');
 $('bPlay').onclick = () => doAction('play');
 $('bClean').onclick = () => doAction('clean');
 $('bFast').onclick = () => doAction('fast');
-$('bMain').onclick = () => { if (pet.stage === 'egg') doAction('warm'); else $('trainCard').scrollIntoView({ behavior: 'smooth', block: 'center' }); };
+// 훈련 버튼: 알이면 품기, 아니면 오른쪽에 훈련 종류가 위에서 아래로 펼쳐짐
+function closeTrainPop() { $('trainPop').hidden = true; $('bMain').setAttribute('aria-expanded', 'false'); }
+function openTrainPop() {
+  const pop = $('trainPop'), dev = document.querySelector('.device'), btn = $('bMain').querySelector('i');
+  pop.hidden = false; $('bMain').setAttribute('aria-expanded', 'true');
+  // 다시 그려서 등장 애니메이션을 처음부터
+  pop.querySelectorAll('button').forEach(b => { b.style.animation = 'none'; void b.offsetWidth; b.style.animation = ''; });
+  const d = dev.getBoundingClientRect(), r = btn.getBoundingClientRect(), w = pop.offsetWidth;
+  // 항상 훈련 버튼 오른쪽. 기기 테두리 밖으로 나가도 되지만 화면(뷰포트) 밖으로는 안 나가게
+  const maxLeft = document.documentElement.clientWidth - 6 - w - d.left;
+  let left = Math.min(r.right - d.left + 8, maxLeft);
+  pop.style.left = left + 'px';
+  pop.style.top = (r.top - d.top - 8) + 'px';
+  render();
+  const first = pop.querySelector('button:not(:disabled)'); if (first) first.focus({ preventScroll: true });
+}
+$('bMain').onclick = e => {
+  e.stopPropagation();
+  if (pet.stage === 'egg') return doAction('warm');
+  if ($('trainPop').hidden) openTrainPop(); else closeTrainPop();
+};
+document.addEventListener('click', e => { if (!$('trainPop').hidden && !$('trainPop').contains(e.target)) closeTrainPop(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('trainPop').hidden) { closeTrainPop(); $('bMain').focus(); } });
 
 $('bStart').onclick = () => run(async () => { const d = await api('/pet', { name: $('nameIn').value.trim() }); apply(d); show(); toast(d.msg); });
 $('nameIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('bStart').click(); });
 $('bReset').onclick = () => { $('resetConfirm').hidden = false; $('bReset').hidden = true; };
 $('bResetNo').onclick = () => { $('resetConfirm').hidden = true; $('bReset').hidden = false; };
-$('bResetYes').onclick = () => { $('resetConfirm').hidden = true; $('bReset').hidden = false; pet = null; registered = null; $('nameIn').value = ''; show(); };
+$('bResetYes').onclick = () => { $('resetConfirm').hidden = true; $('bReset').hidden = false; pet = null; $('nameIn').value = ''; show(); };
 
 // ---------- 훈련 ----------
 document.querySelectorAll('[data-train]').forEach(b => b.onclick = () => run(async () => {
+  closeTrainPop();
   const d = await api('/train/start', { kind: b.dataset.train });
   apply(d);
   train = { params: d.train.params, t0: performance.now() };
-  mode = 'train'; $('pad').hidden = true; $('bStop').hidden = false;
+  mode = 'train'; $('pad').hidden = true; $('bStop').hidden = false; renderTendency(pet);
   window.scrollTo({ top: 0, behavior: 'smooth' }); $('bStop').focus({ preventScroll: true });
 }));
 let stopping = false;
@@ -287,17 +434,37 @@ cv.addEventListener('click', () => { if (mode === 'train') stopTrain(); });
 document.addEventListener('keydown', e => { if (mode === 'train' && (e.code === 'Space' || e.code === 'Enter')) { e.preventDefault(); stopTrain(); } });
 
 // ---------- 결투장 ----------
-async function loadArena() { try { const d = await api('/arena'); arena = d.list; npcs = d.npcs; renderArena(); } catch (e) { toast(e.message); } }
+async function loadArena() { try { const d = await api('/arena'); arena = d.list; refreshPicks(false); renderArena(); } catch (e) { toast(e.message); } }
+$('bReroll').onclick = () => { refreshPicks(true); renderArena(); };
 $('bRefresh').onclick = loadArena;
-$('bReg').onclick = () => run(async () => { const d = await api('/register', {}); apply(d); toast(d.msg); await loadArena(); });
+const doRegister = replace => run(async () => {
+  $('replacePick').hidden = true;
+  const d = await api('/register', replace ? { replace } : {}); apply(d); toast(d.msg);
+  const e = entryOf(pet); if (e) fighterId = e.id;
+  await loadArena();
+});
+$('bReg').onclick = () => {
+  if (mine.length < maxEntries) return doRegister();
+  // 자리가 꽉 찼으면 내릴 몽글이를 고름
+  $('replaceWarn').textContent = `어느 몽글이를 내릴까요? 내린 몽글이의 전적은 사라지고, ${pet.name}이(가) 0승 0패로 시작해요.`;
+  const bx = $('replaceBtns'); bx.innerHTML = '';
+  mine.forEach(e => {
+    const b = document.createElement('button'); b.className = 'btn';
+    b.textContent = `${e.name} 내리기 (${rankText(e)} · ${e.wins}승 ${e.losses}패)`;
+    b.addEventListener('click', () => doRegister(e.id));
+    bx.appendChild(b);
+  });
+  $('replacePick').hidden = false; renderArena();
+};
+$('bReplaceNo').onclick = () => { $('replacePick').hidden = true; renderArena(); };
 
 let battleTimer = null;
 function startBattle(id) {
   run(async () => {
-    const d = await api('/battle', { opponent: id });
+    const d = await api('/battle', { opponent: id, fighter: fighterId });
     const b = d.battle;
     battle = { mult: b.mult, me: b.me, op: b.op, mh: b.me.hp, oh: b.op.hp, events: b.events, win: b.win, i: 0, fx: null, result: d };
-    mode = 'battle'; $('battleCard').hidden = false; $('battleTitle').textContent = `${b.me.name} vs ${b.op.name}`; $('battleLog').innerHTML = '';
+    mode = 'battle'; renderTendency(pet); $('battleCard').hidden = false; $('battleTitle').textContent = `${b.me.name} vs ${b.op.name}`; $('battleLog').innerHTML = '';
     window.scrollTo({ top: 0, behavior: 'smooth' });
     if (b.me.type && b.op.type) {
       const tn = C.TYPES, m = b.mult;
@@ -315,7 +482,8 @@ function step() {
   const b = battle; if (!b) return;
   if (b.i >= b.events.length) return finishBattle();
   const e = b.events[b.i++];
-  b.fx = { at: performance.now(), type: (e.who === 'me' ? b.me : b.op).type, target: e.who === 'me' ? 'op' : 'me', miss: !!e.miss, strong: e.eff === 'up' };
+  const A = e.who === 'me' ? b.me : b.op;
+  b.fx = { at: performance.now(), type: A.type, big: styleOf(A.form) === 'atk', target: e.who === 'me' ? 'op' : 'me', miss: !!e.miss, strong: e.eff === 'up' };
   // 손이 사라지는 순간 체력이 줄고 로그가 나옴
   b.pending = e;
   battleTimer = setTimeout(() => {
@@ -338,27 +506,11 @@ function finishBattle() {
   setTimeout(() => { battle = null; mode = 'idle'; render(); loadArena(); }, 1400);
 }
 
-// ---------- 탭 / 진화표 ----------
-['care', 'arena', 'dex'].forEach(k => $('t-' + k).onclick = () => {
-  ['care', 'arena', 'dex'].forEach(j => { $('t-' + j).setAttribute('aria-selected', j === k); $('p-' + j).hidden = j !== k; });
-  if (k === 'arena') loadArena();
+// ---------- 탭 ----------
+['care', 'arena', 'rank'].forEach(k => $('t-' + k).onclick = () => {
+  ['care', 'arena', 'rank'].forEach(j => { $('t-' + j).setAttribute('aria-selected', j === k); $('p-' + j).hidden = j !== k; });
+  if (k === 'arena' || k === 'rank') loadArena();
 });
-(function buildDex() {
-  const d = $('dex');
-  const item = (k, desc) => { const it = document.createElement('div'); const c = document.createElement('canvas'); drawSprite(c, k); const p = document.createElement('p'); const b = document.createElement('b'); b.textContent = C.FORMS[k].name; p.append(b, desc || C.FORMS[k].how); it.append(c, p); return it; };
-  const section = (title, keys, descs) => {
-    const hh = document.createElement('p'); hh.className = 'stageh'; hh.textContent = title; d.appendChild(hh);
-    const g = document.createElement('div'); g.className = 'dex'; keys.forEach((k, i) => g.appendChild(item(k, descs && descs[i]))); d.appendChild(g);
-  };
-  section('유체', ['mongsil']);
-  section('아성체', ['ppulmong', 'dandanmong']);
-  C.TYPE_ORDER.forEach(t => {
-    const T = C.TYPES[t], weak = C.TYPE_ORDER.find(x => C.TYPES[x].beats === t);
-    section(`성체 · ${T.name} — ${C.TYPES[T.beats].name}에 강하고 ${C.TYPES[weak].name}에 약해요`,
-      ['atk', 'def', 'all'].map(s => `${t}_${s}`), ['atk', 'def', 'all'].map(s => `${C.STYLES[s].name} · ${C.STYLES[s].how}`));
-  });
-  section('특별 성체', ['scruffy_muk'], ['돌봄 실수 8회 이상이면 이 모습이 돼요. 타입은 성향대로 정해져요.']);
-})();
 
 // ---------- 시작 ----------
 setInterval(() => {

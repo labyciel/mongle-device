@@ -21,7 +21,20 @@ CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, nick TEXT UNIQUE COLLA
 CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, user_id INTEGER, created INTEGER);
 CREATE TABLE IF NOT EXISTS pets (user_id INTEGER PRIMARY KEY, data TEXT);
 CREATE TABLE IF NOT EXISTS arena (user_id INTEGER PRIMARY KEY, data TEXT, wins INTEGER DEFAULT 0, losses INTEGER DEFAULT 0, updated INTEGER);
+-- 결투장 몽글이 (한 계정당 최대 RULES.maxEntries 마리)
+CREATE TABLE IF NOT EXISTS entries (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, data TEXT, wins INTEGER DEFAULT 0, losses INTEGER DEFAULT 0, created INTEGER);
+CREATE INDEX IF NOT EXISTS entries_user ON entries(user_id);
+-- 몽글이끼리 맞붙은 결과 (랭킹 동점 처리용): winner가 loser를 n번 이김
+CREATE TABLE IF NOT EXISTS matches (winner INTEGER, loser INTEGER, n INTEGER DEFAULT 0, PRIMARY KEY (winner, loser));
+CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT);
 `);
+// 이전 버전(계정당 1마리) 결투장 데이터를 한 번만 옮김
+if (!db.prepare("SELECT v FROM meta WHERE k = 'arena_v2'").get()) {
+  db.transaction(() => {
+    db.exec('INSERT INTO entries (user_id, data, wins, losses, created) SELECT user_id, data, wins, losses, updated FROM arena');
+    db.prepare("INSERT INTO meta (k, v) VALUES ('arena_v2', '1')").run();
+  })();
+}
 
 const q = {
   userByNick: db.prepare('SELECT * FROM users WHERE nick = ?'),
@@ -32,13 +45,16 @@ const q = {
   delSession: db.prepare('DELETE FROM sessions WHERE token = ?'),
   getPet: db.prepare('SELECT data FROM pets WHERE user_id = ?'),
   putPet: db.prepare('INSERT INTO pets (user_id, data) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET data = excluded.data'),
-  getReg: db.prepare('SELECT * FROM arena WHERE user_id = ?'),
-  putReg: db.prepare(`INSERT INTO arena (user_id, data, wins, losses, updated) VALUES (?, ?, ?, ?, ?)
-    ON CONFLICT(user_id) DO UPDATE SET data = excluded.data, updated = excluded.updated`),
-  delReg: db.prepare('DELETE FROM arena WHERE user_id = ?'),
-  addRecord: db.prepare('UPDATE arena SET wins = wins + ?, losses = losses + ? WHERE user_id = ?'),
-  listArena: db.prepare(`SELECT a.*, u.nick FROM arena a JOIN users u ON u.id = a.user_id
-    ORDER BY a.wins DESC, a.updated DESC LIMIT 200`)
+  myEntries: db.prepare('SELECT * FROM entries WHERE user_id = ? ORDER BY created'),
+  getEntry: db.prepare('SELECT * FROM entries WHERE id = ?'),
+  addEntry: db.prepare('INSERT INTO entries (user_id, data, wins, losses, created) VALUES (?, ?, 0, 0, ?)'),
+  delEntry: db.prepare('DELETE FROM entries WHERE id = ?'),
+  delMatches: db.prepare('DELETE FROM matches WHERE winner = ? OR loser = ?'),
+  setEntryData: db.prepare('UPDATE entries SET data = ? WHERE id = ?'),
+  addRecord: db.prepare('UPDATE entries SET wins = wins + ?, losses = losses + ? WHERE id = ?'),
+  addMatch: db.prepare('INSERT INTO matches (winner, loser, n) VALUES (?, ?, 1) ON CONFLICT(winner, loser) DO UPDATE SET n = n + 1'),
+  allMatches: db.prepare('SELECT * FROM matches'),
+  listEntries: db.prepare('SELECT e.*, u.nick FROM entries e JOIN users u ON u.id = e.user_id')
 };
 
 // ---------- 비밀번호 ----------
@@ -85,14 +101,27 @@ function loadPet(uid) {
 }
 const savePet = (uid, pet) => q.putPet.run(uid, JSON.stringify(pet));
 
+// 결투장 전체를 랭킹 순서로 (승-패 → 승 → 맞대결 → 공동 순위)
+function rankedArena(viewerUid) {
+  const now = Date.now(), H = {};
+  q.allMatches.all().forEach(m => { H[m.winner + '-' + m.loser] = m.n; });
+  const list = q.listEntries.all().map(r => Object.assign(Core.migrateEntry(JSON.parse(r.data)), {
+    id: r.id, uid: r.user_id, trainer: r.nick, wins: r.wins, losses: r.losses, registeredAt: r.created,
+    mine: r.user_id === viewerUid
+  }));
+  const ranked = Core.rankEntries(list, (a, b) => H[a + '-' + b] || 0);
+  ranked.forEach(e => { e.id = 'e' + e.id; e.energyNow = Core.arenaEnergy(e, now); });
+  return ranked;
+}
+// 내 결투장 몽글이들 (등록한 순서, 순위·에너지 포함)
+function myEntries(uid) {
+  const list = rankedArena(uid);
+  return list.filter(e => e.uid === uid).sort((a, b) => a.registeredAt - b.registeredAt)
+    .map(e => Object.assign({}, e, { total: list.length }));
+}
+const publicEntry = e => { const o = Object.assign({}, e); ['uid', 'born', 'energy', 'energyAt', 'energyNow', 'tv'].forEach(k => delete o[k]); return o; };
 function payload(uid, pet, extra) {
-  const reg = q.getReg.get(uid);
-  return Object.assign({
-    now: Date.now(),
-    pet,
-    allowFast: ALLOW_FAST,
-    registered: reg ? Object.assign(Core.migrateEntry(JSON.parse(reg.data)), { wins: reg.wins, losses: reg.losses }) : null
-  }, extra || {});
+  return Object.assign({ now: Date.now(), pet, allowFast: ALLOW_FAST, mine: myEntries(uid), maxEntries: Core.RULES.maxEntries }, extra || {});
 }
 
 // ---------- 계정 ----------
@@ -134,11 +163,11 @@ app.get('/api/me', auth, (req, res) => {
   res.json(payload(req.uid, pet, { nick: u.nick }));
 });
 
-// 새 알 받기 (처음 시작 또는 초기화). 결투장 등록도 지워집니다.
+// 새 알 받기. 결투장에 등록된 몽글이는 그대로 남습니다.
 app.post('/api/pet', auth, throttle, (req, res) => {
   const name = String(req.body.name || '').trim().slice(0, 10) || '몽이';
   const pet = Core.newPet(name, Date.now());
-  db.transaction(() => { savePet(req.uid, pet); q.delReg.run(req.uid); })();
+  savePet(req.uid, pet);
   trains.delete(req.uid);
   res.json(payload(req.uid, pet, { msg: '알을 받았어요. 품기 버튼을 눌러 주세요.' }));
 });
@@ -162,6 +191,7 @@ app.post('/api/train/start', auth, throttle, (req, res) => {
   const kind = String(req.body.kind || '');
   if (!Core.TRAIN_KINDS.includes(kind)) return fail(res, 400, '훈련 종류를 골라 주세요.');
   if (pet.stage === 'egg') return fail(res, 400, '알은 훈련할 수 없어요.');
+  if (pet.stage === 'adult') return fail(res, 400, '다 자란 몽글이는 더 훈련할 수 없어요.');
   if (pet.energy < Core.RULES.trainCost) return fail(res, 400, '에너지가 부족해요.');
   const params = Core.trainParams(pet);
   trains.set(req.uid, { kind, params, start: Date.now() });
@@ -186,56 +216,66 @@ app.post('/api/train/stop', auth, (req, res) => {
 });
 
 // ---------- 결투장 ----------
-function entryFromPet(pet) {
-  return Object.assign({ name: pet.name, form: pet.form, type: pet.type, style: pet.style, level: pet.level, usedFast: !!pet.usedFast }, Core.bstats(pet));
+function entryFromPet(pet, now) {
+  return Object.assign({ name: pet.name, form: pet.form, look: pet.look, type: pet.type, style: pet.style, level: pet.level,
+    usedFast: !!pet.usedFast, born: pet.born, energy: Core.RULES.arenaMax, tv: 2 }, Core.bstats(pet));
 }
 
+// 성체를 결투장에 등록. 계정당 최대 2마리, 꽉 찼으면 replace로 교체할 몽글이를 골라야 함 (교체된 몽글이 기록은 삭제)
 app.post('/api/register', auth, throttle, (req, res) => {
   const pet = loadPet(req.uid);
   if (!pet) return fail(res, 404, '먼저 알을 받아 주세요.');
   if (pet.stage !== 'adult') return fail(res, 400, '성체(Lv.50)가 되어야 등록할 수 있어요.');
-  const had = !!q.getReg.get(req.uid);
-  q.putReg.run(req.uid, JSON.stringify(entryFromPet(pet)), pet.wins, pet.losses, Date.now());
+  const rows = q.myEntries.all(req.uid);
+  if (rows.some(r => JSON.parse(r.data).born === pet.born)) return fail(res, 409, '이미 결투장에 올라가 있는 몽글이에요.');
+  let replaced = null;
+  if (rows.length >= Core.RULES.maxEntries) {
+    const m = /^e(\d+)$/.exec(String(req.body.replace || ''));
+    replaced = m && rows.find(r => r.id === Number(m[1]));
+    if (!replaced) return fail(res, 409, `결투장 자리가 꽉 찼어요. 교체할 몽글이를 골라 주세요.`);
+  }
+  const now = Date.now();
+  db.transaction(() => {
+    if (replaced) { q.delEntry.run(replaced.id); q.delMatches.run(replaced.id, replaced.id); }
+    q.addEntry.run(req.uid, JSON.stringify(entryFromPet(pet, now)), now);
+  })();
   savePet(req.uid, pet);
-  res.json(payload(req.uid, pet, { msg: had ? '등록 정보를 갱신했어요.' : '결투장에 등록했어요!' }));
+  const oldName = replaced && JSON.parse(replaced.data).name;
+  res.json(payload(req.uid, pet, { msg: oldName ? `${oldName} 대신 ${pet.name}이(가) 결투장에 올라갔어요!` : '결투장에 등록했어요!' }));
 });
 
 app.get('/api/arena', auth, (req, res) => {
-  const list = q.listArena.all().map(r => Object.assign(Core.migrateEntry(JSON.parse(r.data)), {
-    id: 'u' + r.user_id, trainer: r.nick, wins: r.wins, losses: r.losses, updated: r.updated, mine: r.user_id === req.uid
-  }));
-  res.json({ now: Date.now(), list, npcs: Core.NPCS });
+  res.json({ now: Date.now(), list: rankedArena(req.uid).map(publicEntry) });
 });
 
+// 배틀: 내 결투장 몽글이(fighter) 중 하나가 상대(opponent)와 싸움
 app.post('/api/battle', auth, throttle, (req, res) => {
-  const pet = loadPet(req.uid);
-  if (!pet) return fail(res, 404, '먼저 알을 받아 주세요.');
-  if (pet.stage !== 'adult') return fail(res, 400, '성체만 배틀할 수 있어요.');
-  if (pet.energy < Core.RULES.battleCost) return fail(res, 400, `에너지가 ${Core.RULES.battleCost} 이상 필요해요.`);
-  const id = String(req.body.opponent || '');
-  let op, opUid = null;
-  const npc = Core.NPCS.find(n => n.id === id);
-  if (npc) op = npc;
-  else {
-    const m = /^u(\d+)$/.exec(id);
-    const row = m && q.getReg.get(Number(m[1]));
-    if (!row) return fail(res, 404, '상대를 찾을 수 없어요. 목록을 새로고침해 주세요.');
-    opUid = row.user_id;
-    if (opUid === req.uid) return fail(res, 400, '내 몬스터와는 싸울 수 없어요.');
-    op = Core.migrateEntry(JSON.parse(row.data));
+  const rows = q.myEntries.all(req.uid);
+  if (!rows.length) return fail(res, 400, '먼저 성체를 결투장에 등록해 주세요.');
+  const fm = /^e(\d+)$/.exec(String(req.body.fighter || ''));
+  const frow = fm ? rows.find(r => r.id === Number(fm[1])) : rows.length === 1 ? rows[0] : null;
+  if (!frow) return fail(res, 400, '출전할 몽글이를 골라 주세요.');
+  const mine = Core.migrateEntry(JSON.parse(frow.data)), now = Date.now();
+  if (Core.arenaEnergy(mine, now) < Core.RULES.battleCost) {
+    const m = Math.ceil(Core.arenaNextIn(mine, now) / 60);
+    return fail(res, 400, `${mine.name}의 도전 횟수가 없어요. ${m}분 뒤에 1번 회복돼요.`);
   }
-  const me = Core.side(Object.assign({ name: pet.name, form: pet.form, level: pet.level, type: pet.type }, Core.bstats(pet)));
-  const opSide = Core.side(op);
+  const om = /^e(\d+)$/.exec(String(req.body.opponent || ''));
+  const orow = om && q.getEntry.get(Number(om[1]));
+  if (!orow) return fail(res, 404, '상대를 찾을 수 없어요. 목록을 새로고침해 주세요.');
+  if (orow.user_id === req.uid) return fail(res, 400, '내 몽글이끼리는 싸울 수 없어요.');
+  const op = Core.migrateEntry(JSON.parse(orow.data));
+  const me = Core.side(mine), opSide = Core.side(op);
   const sim = Core.simulate(me, opSide);
-  const info = Core.applyBattle(pet, me.level, opSide.level, sim.win, !!npc);
+  Core.spendArenaEnergy(mine, now, Core.RULES.battleCost);
   db.transaction(() => {
-    savePet(req.uid, pet);
-    if (opUid) {
-      q.addRecord.run(sim.win ? 1 : 0, sim.win ? 0 : 1, req.uid);  // 내가 등록돼 있으면 내 기록 반영
-      q.addRecord.run(sim.win ? 0 : 1, sim.win ? 1 : 0, opUid);    // 상대 기록 반영
-    }
+    q.setEntryData.run(JSON.stringify(mine), frow.id);
+    q.addRecord.run(sim.win ? 1 : 0, sim.win ? 0 : 1, frow.id);
+    q.addRecord.run(sim.win ? 0 : 1, sim.win ? 1 : 0, orow.id);
+    q.addMatch.run(sim.win ? frow.id : orow.id, sim.win ? orow.id : frow.id);
   })();
-  res.json(payload(req.uid, pet, { battle: { me, op: opSide, events: sim.ev, win: sim.win, mult: Core.typeMult(me.type, opSide.type) }, info }));
+  const pet = loadPet(req.uid);
+  res.json(payload(req.uid, pet, { battle: { fighter: 'e' + frow.id, me, op: opSide, events: sim.ev, win: sim.win, mult: Core.typeMult(me.type, opSide.type) } }));
 });
 
 app.get('/api/health', (req, res) => res.json({ ok: true, now: Date.now() }));
