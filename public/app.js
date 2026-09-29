@@ -154,7 +154,7 @@ async function loadMe() { const d = await api('/me'); apply(d); show(); }
 const cv = $('lcd'), ctx = cv.getContext('2d'); const W = 40, H = 20, P = 10;
 const fb = new Uint8Array(W * H);
 const px = (x, y, v) => { if (x >= 0 && x < W && y >= 0 && y < H) fb[y * W + x] = v; };
-function spr(g, ox, oy, flip) { for (let y = 0; y < g.length; y++) { const r = g[y]; for (let x = 0; x < r.length; x++) { const c = r[flip ? r.length - 1 - x : x]; if (c === '#') px(ox + x, oy + y, 2); else if (c === 'o') px(ox + x, oy + y, 1); } } }
+function spr(g, ox, oy, flip) { for (let y = 0; y < g.length; y++) { const r = g[y]; for (let x = 0; x < r.length; x++) { const c = r[flip ? r.length - 1 - x : x]; if (c === '#') px(ox + x, oy + y, 2); else if (c === 'o') px(ox + x, oy + y, 1); else if (c === 'h') px(ox + x, oy + y, 3); } } }
 function rect(x, y, w, h, v) { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) px(x + i, y + j, v); }
 function flush(invert) {
   const cs = getComputedStyle(document.documentElement);
@@ -179,6 +179,58 @@ function drawSprite(canvas, form) {
   const cs = getComputedStyle(document.documentElement);
   const on = cs.getPropertyValue('--lcd-on').trim(), mid = cs.getPropertyValue('--lcd-mid').trim();
   spriteOf(form).forEach((r, y) => [...r].forEach((ch, x) => { if (ch === '.') return; c.fillStyle = ch === '#' ? on : mid; c.fillRect(x, y, 1, 1); }));
+}
+
+// ---------- 밥 먹기 연출 ----------
+// 모습별 입 위치 (16×16 그림 안의 x, y, 너비, 높이). 새 모습을 추가하면 여기에도 넣어야 입이 벌어져요
+const MOUTH = {
+  b_drop:{x:7,y:11,w:2,h:1}, b_fluff:{x:6,y:10,w:4,h:2}, b_slug:{x:3,y:11,w:2,h:1},
+  r_horn:{x:7,y:10,w:2,h:1}, r_wing2:{x:7,y:10,w:2,h:1}, r_shell2:{x:7,y:10,w:2,h:1}, r_guard:{x:7,y:10,w:2,h:1},
+  mukfist:{x:6,y:7,w:4,h:1}, ironshell:{x:4,y:10,w:8,h:1}, mukpebble:{x:6,y:9,w:4,h:2},
+  c_muk_atk:{x:7,y:10,w:2,h:1}, c_muk_def:{x:7,y:10,w:2,h:1}, c_muk_all:{x:6,y:9,w:4,h:2},
+  jjibunny:{x:7,y:8,w:2,h:1}, c_jji_def:{x:7,y:10,w:2,h:1}, c_jji_all:{x:7,y:10,w:2,h:1},
+  j_blade_arms:{x:7,y:10,w:2,h:1}, j_crest_bird:{x:7,y:8,w:2,h:1}, j_cross_horn:{x:7,y:11,w:2,h:1},
+  galewing:{x:7,y:7,w:2,h:1}, c_ppa_atk:{x:7,y:8,w:2,h:1}, c_ppa_def:{x:7,y:10,w:2,h:1}, c_ppa_all:{x:6,y:9,w:3,h:1}
+};
+// 뼈 달린 고기 (14×14). 몽글이 쪽(왼쪽 아래)부터 한 입씩: 0 온전 → 1 → 2 → 3 뼈만. h = 밝은 칸(뼈·윤기)
+const MEAT = [["..........#...", ".........#h#..", "........#hh##.", "......####hhh#", "....##ohoo#h#.", "...#oohooo##..", "...#ohoooo#...", "..#ooooooo#...", "..##ooooo#....", ".#h#ooooo#....", "#hhh##o##.....", ".##hh##.......", "..#h#.........", "...#.........."],
+   ["..........#...", ".........#h#..", "........#hh##.", "......####hhh#", "....##ohoo#h#.", "...#oohooo##..", "...#ohoooo#...", "....#ooooo#...", "..#.##ooo#....", ".#h#h##oo#....", "#hhh#..##.....", ".##hh#........", "..#h#.........", "...#.........."],
+   ["..........#...", ".........#h#..", "........#hh##.", "......####hhh#", ".....#ohoo#h#.", "......#ooo##..", "......##oo#...", ".....#h##o#...", "..#.#h#..#....", ".#h#h#........", "#hhh#.........", ".##hh#........", "..#h#.........", "...#.........."],
+   ["..........#...", ".........#h#..", "........#hh##.", ".........#hhh#", "........#h#h#.", ".......#h#.#..", "......#h#.....", ".....#h#......", "..#.#h#.......", ".#h#h#........", "#hhh#.........", ".##hh#........", "..#h#.........", "...#.........."]];
+// 입 벌린 그림: 원래 입을 지우고 그 자리에 세로 3칸짜리 벌린 입을 그림
+function openMouth(g, m) {
+  const a = g.map(r => r.split(''));
+  for (let y = m.y; y < m.y + m.h; y++) for (let x = m.x; x < m.x + m.w; x++) if (a[y][x] === '#') a[y][x] = 'o';
+  const W = Math.max(4, m.w % 2 ? m.w + 1 : m.w), x0 = Math.round(m.x + m.w / 2 - W / 2), y0 = m.y;
+  const put = (x, y) => { if (y >= 0 && y < 16 && x >= 0 && x < 16) a[y][x] = '#'; };
+  for (let x = x0 + 1; x < x0 + W - 1; x++) { put(x, y0); put(x, y0 + 2); }
+  for (let x = x0; x < x0 + W; x++) put(x, y0 + 1);
+  return a.map(r => r.join(''));
+}
+const OPEN_CACHE = {};
+const openOf = key => OPEN_CACHE[key] || (OPEN_CACHE[key] = MOUTH[key] ? openMouth(spriteOf(key), MOUTH[key]) : spriteOf(key));
+// 3번 씹기: 벌림 200ms(고기 쪽으로 1칸) + 다묾 220ms(한 입) → 통통 두 번 → 뼈가 0.7초 남았다 사라짐
+const EAT = { open: 200, close: 220, hop: 180, bone: 700, chomps: 3 };
+EAT.total = EAT.chomps * (EAT.open + EAT.close) + EAT.hop * 4 + EAT.bone;
+let eat = null;   // { t0 } 밥 먹는 중
+function eatState(t) {
+  const cyc = EAT.open + EAT.close, end = EAT.chomps * cyc;
+  if (t < end) {
+    const i = Math.floor(t / cyc), p = t - i * cyc, open = p < EAT.open;
+    return { open, lean: open ? 1 : 0, bite: Math.min(3, open ? i : i + 1), hop: 0, crumb: open ? -1 : p - EAT.open };
+  }
+  const h = t - end;
+  return { open: false, lean: 0, bite: 3, hop: h < EAT.hop * 4 && !(Math.floor(h / EAT.hop) % 2) ? -1 : 0, crumb: -1, gone: h >= EAT.hop * 4 };
+}
+function drawEat(t) {
+  const key = lookOf(pet), m = MOUTH[key] || { y: 10 }, st = eatState(t), px0 = 6, py0 = 2;
+  spr(st.open ? openOf(key) : spriteOf(key), px0 + st.lean, py0 + st.hop, false);
+  const fx = px0 + 17, fy = Math.max(0, Math.min(H - MEAT[0].length, py0 + m.y - 7));
+  if (!st.gone) spr(MEAT[st.bite], fx, fy, false);
+  if (st.crumb >= 0 && st.bite > 0) {
+    const d = Math.min(3, Math.floor(st.crumb / 60)), cx = fx + [0, 4, 6, 7][st.bite], cy = fy + [0, 10, 8, 7][st.bite];
+    px(cx, cy + d, 2); if (st.crumb > 60) px(cx - 2, cy + 1 + d, 1);
+  }
 }
 
 function frame(t) {
@@ -217,6 +269,7 @@ function frame(t) {
     }
     hpBar(2, b.mh, b.me.hp); hpBar(22, b.oh, b.op.hp);
   }
+  else if (eat && pet.stage !== 'egg' && t - eat.t0 < EAT.total) drawEat(t - eat.t0);   // 밥 먹는 중 (똥은 잠깐 가림)
   else if (pet.stage === 'egg') { const w = Math.floor(t / 500) % 4; spr(S.egg, 12 + (w === 1 ? 1 : w === 3 ? -1 : 0), 2, false); }
   else {
     if (t - lastStep > 700) { lastStep = t; const d = Math.random() < .5 ? -1 : 1; wx = C.clamp(wx + d, 1, 14); facing = d; }
@@ -374,7 +427,10 @@ function entryRow(o, v, opt) {
 // 돌봄 반응은 기기 화면 가운데 위 말풍선으로 (다른 알림은 아래쪽 토스트 그대로)
 let sayT;
 function say(m) { if (!m) return; const t = $('say'); t.textContent = m; t.classList.add('on'); clearTimeout(sayT); sayT = setTimeout(() => t.classList.remove('on'), 2200); }
-const doAction = type => run(async () => { const d = await api('/action', { type }); apply(d); say(d.msg); }, say);
+const doAction = type => run(async () => {
+  const d = await api('/action', { type }); apply(d); say(d.msg);
+  if (type === 'feed') { eat = { t0: performance.now() }; wx = 6; facing = 1; }   // 고기 먹는 연출
+}, say);
 $('bFeed').onclick = () => doAction('feed');
 $('bPlay').onclick = () => doAction('play');
 $('bClean').onclick = () => doAction('clean');
