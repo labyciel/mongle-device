@@ -1,0 +1,16 @@
+{
+  "name": "mongle-device",
+  "version": "1.0.0",
+  "description": "몽글 디바이스 - 서버 시간으로 돌아가는 몬스터 육성 + 결투장 게임",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "express": "^4.21.0"
+  }
+}

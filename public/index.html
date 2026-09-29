@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>몽글 디바이스</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Sans+KR:wght@400;500;700&family=Nanum+Gothic+Coding:wght@400;700&display=swap">
+<link rel="stylesheet" href="style.css">
+<style>
+  html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+  body{margin:0}
+  [hidden]{display:none!important}
+  .who{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--muted)}
+  .linkbtn{background:none;border:0;color:var(--muted);text-decoration:underline;cursor:pointer;font:inherit}
+  .tag.test{background:var(--warn);color:#fff}
+  .tag.adv{background:var(--good);color:#fff}
+  .tag.dis{background:var(--bad);color:#fff}
+  .tag.type{background:var(--ink);color:var(--bg)}
+  .btns.two{grid-template-columns:repeat(2,1fr)}
+  .bar b.t-muk{background:#8A6A4B}.bar b.t-jji{background:#3F7FB5}.bar b.t-ppa{background:#3E9A6A}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <h1>몽글 디바이스</h1>
+    <p>알을 품고, 먹이고, 훈련시켜 성체로 키운 뒤 결투장에 올려 보세요.</p>
+  </header>
+
+  <section class="device" aria-label="육성 기기">
+    <div class="brand"><span>MONGLE-01</span><span id="clock">--:--</span></div>
+    <div class="bezel">
+      <canvas id="lcd" width="400" height="200" aria-label="몬스터 화면"></canvas>
+      <div class="lcdline"><span id="lcdL">LOADING</span><span id="lcdR"></span></div>
+    </div>
+    <div class="pad" id="pad" hidden>
+      <button id="bFeed"><i></i>밥</button>
+      <button id="bPlay"><i></i>놀기</button>
+      <button id="bClean"><i></i>청소</button>
+      <button id="bMain"><i></i><span id="bMainLbl">훈련</span></button>
+    </div>
+    <button class="stop" id="bStop" hidden>멈춰!</button>
+  </section>
+
+  <section class="card" id="loginCard" hidden>
+    <h2>트레이너 로그인</h2>
+    <p class="hint">처음이면 닉네임과 비밀번호를 정하고 <b>회원가입</b>을 눌러 주세요. 다른 기기에서도 같은 닉네임으로 이어서 키울 수 있어요.</p>
+    <input type="text" id="nickIn" maxlength="12" placeholder="닉네임 (2~12자)" autocomplete="username">
+    <input type="password" id="passIn" maxlength="64" placeholder="비밀번호 (4자 이상)" autocomplete="current-password" style="font:inherit;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);width:100%">
+    <div class="btns" style="grid-template-columns:1fr 1fr">
+      <button class="btn" id="bSignup">회원가입</button>
+      <button class="btn primary" id="bLogin">로그인</button>
+    </div>
+    <p class="warnnote" id="loginErr"></p>
+  </section>
+
+  <section class="card" id="startCard" hidden>
+    <h2>새 알을 받았어요</h2>
+    <p class="hint">알 이름을 정해 주세요. 부화 후에도 이 이름으로 불려요.</p>
+    <input type="text" id="nameIn" maxlength="10" placeholder="예: 몽이" autocomplete="off">
+    <button class="btn primary" id="bStart">알 품기 시작</button>
+  </section>
+
+  <div id="game" hidden>
+    <div class="who"><span>트레이너 <b id="whoNick"></b></span><button class="linkbtn" id="bLogout">로그아웃</button></div>
+    <nav class="tabs" role="tablist" style="margin-top:8px">
+      <button role="tab" id="t-care" aria-selected="true">키우기</button>
+      <button role="tab" id="t-arena" aria-selected="false">결투장</button>
+      <button role="tab" id="t-dex" aria-selected="false">진화표</button>
+    </nav>
+
+    <div class="panel" id="p-care" style="margin-top:16px">
+      <div class="card">
+        <div class="row">
+          <div><div class="big" id="sName">-</div><div class="hint" id="sForm">-</div></div>
+          <span class="pill stage" id="sStage">알</span>
+        </div>
+        <div class="meters">
+          <span>레벨 <b id="sLv">1</b></span><div class="bar"><b class="xp" id="mXp"></b></div><span class="num" id="nXp"></span>
+          <span>배부름</span><div class="bar"><b id="mHun"></b></div><span class="num" id="nHun"></span>
+          <span>기분</span><div class="bar"><b id="mMood"></b></div><span class="num" id="nMood"></span>
+          <span>에너지</span><div class="bar"><b id="mEn"></b></div><span class="num" id="nEn"></span>
+        </div>
+        <p class="hint" id="sNext"></p>
+      </div>
+
+      <div class="card" id="tendCard">
+        <h2>성향</h2>
+        <div class="meters">
+          <span>묵</span><div class="bar"><b class="t-muk" id="tb-muk"></b></div><span class="num" id="tn-muk"></span>
+          <span>찌</span><div class="bar"><b class="t-jji" id="tb-jji"></b></div><span class="num" id="tn-jji"></span>
+          <span>빠</span><div class="bar"><b class="t-ppa" id="tb-ppa"></b></div><span class="num" id="tn-ppa"></span>
+        </div>
+        <p class="hint" id="tendHint"></p>
+      </div>
+
+      <div class="card" id="trainCard">
+        <h2>훈련</h2>
+        <p class="hint">훈련 종류를 고르면 화면에 막대가 움직여요. 가운데 진한 칸에서 <b>멈춰!</b>를 누르면 성공, 정중앙이면 대성공.</p>
+        <div class="btns two">
+          <button class="btn" data-train="hp">체력 훈련</button>
+          <button class="btn" data-train="atk">공격력 훈련</button>
+          <button class="btn" data-train="def">방어력 훈련</button>
+          <button class="btn" data-train="spd">속도 훈련</button>
+        </div>
+        <p class="hint">훈련 1회: 에너지 12 · 배부름 6 소모</p>
+      </div>
+
+      <div class="card">
+        <h2>능력치</h2>
+        <div class="stats">
+          <div><small>체력</small><strong id="vHp">-</strong></div>
+          <div><small>공격력</small><strong id="vAtk">-</strong></div>
+          <div><small>방어력</small><strong id="vDef">-</strong></div>
+          <div><small>속도</small><strong id="vSpd">-</strong></div>
+        </div>
+        <div class="row hint"><span>돌봄 실수 <b id="vMis">0</b>회</span><span>전적 <b id="vRec">0승 0패</b></span></div>
+        <p class="hint">모든 시간은 서버 시계로 계산돼요. 기기 시간을 바꿔도 영향이 없어요.</p>
+      </div>
+
+      <div class="card" id="fastCard">
+        <div class="row"><h2>빠른 성장 (테스트)</h2><button class="btn" id="bFast" aria-pressed="false">켜기</button></div>
+        <p class="hint">켜면 경험치 8배, 에너지 회복 5배로 빨라져요. 한 번이라도 켠 몬스터는 결투장에 <b>테스트</b> 표시가 붙어요.</p>
+      </div>
+
+      <div class="card">
+        <div class="row"><h2>처음부터 다시</h2><button class="btn" id="bReset">새 알 받기</button></div>
+        <div class="row" id="resetConfirm" hidden>
+          <span class="warnnote">지금 몬스터는 사라져요. 결투장 등록도 지워져요.</span>
+          <div class="btns" style="grid-template-columns:1fr 1fr;width:100%">
+            <button class="btn" id="bResetNo">취소</button>
+            <button class="btn primary" id="bResetYes">새로 시작</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="p-arena" hidden style="margin-top:16px">
+      <div class="card">
+        <h2>내 출전 기록</h2>
+        <p class="hint" id="regInfo">성체(Lv.50)가 되면 등록할 수 있어요.</p>
+        <button class="btn primary" id="bReg" disabled>현재 상태로 결투장 등록</button>
+        <p class="hint">등록하면 지금 능력치가 서버에 저장돼요. 더 키운 뒤 다시 누르면 갱신돼요. 도전 1회: 에너지 20.</p>
+      </div>
+      <div class="card" id="battleCard" hidden>
+        <div class="row"><h2 id="battleTitle">배틀</h2><button class="btn" id="bSkip">결과 바로 보기</button></div>
+        <ol class="log" id="battleLog"></ol>
+      </div>
+      <div class="card">
+        <div class="row"><h2>등록된 성체</h2><button class="btn" id="bRefresh">새로고침</button></div>
+        <div id="arenaList"><p class="hint">불러오는 중…</p></div>
+      </div>
+      <div class="card">
+        <h2>연습 상대</h2>
+        <p class="hint">서버에 내장된 연습용 상대예요. 승패 기록에는 들어가지 않아요.</p>
+        <div id="npcList"></div>
+      </div>
+    </div>
+
+    <div class="panel" id="p-dex" hidden style="margin-top:16px">
+      <div class="card">
+        <h2>진화표</h2>
+        <p class="hint">레벨 10에 부화, 30에 아성체, 50에 성체로 진화해요. 성체의 타입(묵·찌·빠)은 키운 성향으로, 형태(공격형·방어형·만능형)는 공격력과 방어력 차이로 정해져요. 상성이 유리하면 주는 피해가 1.3배, 불리하면 0.8배예요.</p>
+        <div id="dex"></div>
+      </div>
+    </div>
+  </div>
+</main>
+<div id="toast" role="status" aria-live="polite"></div>
+<script src="core.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
