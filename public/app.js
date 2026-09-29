@@ -21,6 +21,14 @@ ppashield:["................","................","#.#.#......#.#.#","#o#o#......
 ppahand:["................","...#.#.#.#......","...#o#o#o#......","...#o#o#o#..##..","..##o#o#o####o#.","..#ooooooooo#o#.",".#oooooooooooo#.",".#oo##oooo##oo#.",".#oo#.#oo#.#oo#.",".#oooooooooooo#.",".#ooooo##ooooo#.","..#oooooooooo#..","...#oooooooo#...","....#oo##oo#....","....###..###....","................"]
 };
 const spriteOf = form => S[(C.FORMS[form] || {}).sprite || form] || S.mongsil;
+// 공격 손 (위에서부터 묵·찌·빠). '#' 테두리, 'o' 밝은 속. 손 모양 점만 그리고 주변은 몬스터가 그대로 보임
+const HANDS = {
+  muk: [".#.#.#.#.","#o#o#o#o#","#o#o#o#o#","#####o#o#","#oooo#oo#","#####ooo#",".#ooooo#.","..#####.."],
+  jji: [".#...#..","#o#.#o#.","#o#.#o#.",".#o#o#..","##ooo##.","#oooooo#","#####oo#",".#ooooo#","..#####."],
+  ppa: [".....#.....","...##o##...","..#o#o#o##.","..#o#o#o#o#",".##o#o#o#o#","#o#ooooooo#","#ooooooooo#",".#ooooooo#.","..#######.."]
+};
+// 배틀 연출 타이밍 (ms): 손이 톡 붙는 순간 / 손이 사라지는 순간 / 깜빡임 끝 / 다음 공격
+const HIT = { land: 80, handEnd: 450, end: 720, next: 950 };
 const POOP = ["...#....","..#o#...","..###...",".#ooo#..",".#####..","#ooooo#.","#######.","........"];
 
 // ---------- 상태 ----------
@@ -109,9 +117,9 @@ function spr(g, ox, oy, flip) { for (let y = 0; y < g.length; y++) { const r = g
 function rect(x, y, w, h, v) { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) px(x + i, y + j, v); }
 function flush(invert) {
   const cs = getComputedStyle(document.documentElement);
-  const bg = cs.getPropertyValue('--lcd').trim(), on = cs.getPropertyValue('--lcd-on').trim(), mid = cs.getPropertyValue('--lcd-mid').trim(), gh = cs.getPropertyValue('--lcd-ghost').trim();
+  const bg = cs.getPropertyValue('--lcd').trim(), on = cs.getPropertyValue('--lcd-on').trim(), mid = cs.getPropertyValue('--lcd-mid').trim(), gh = cs.getPropertyValue('--lcd-ghost').trim(), hi = cs.getPropertyValue('--lcd-hi').trim() || '#C8D4AA';
   ctx.fillStyle = bg; ctx.fillRect(0, 0, cv.width, cv.height);
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { let v = fb[y * W + x]; if (invert) v = v ? 0 : 2; ctx.fillStyle = v === 2 ? on : v === 1 ? mid : gh; ctx.fillRect(x * P, y * P, P - 1, P - 1); }
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { let v = fb[y * W + x]; if (invert) v = v ? 0 : 2; ctx.fillStyle = v === 2 ? on : v === 1 ? mid : v === 3 ? hi : gh; ctx.fillRect(x * P, y * P, P - 1, P - 1); }
 }
 function drawSprite(canvas, form) {
   const c = canvas.getContext('2d'); canvas.width = 16; canvas.height = 16;
@@ -132,9 +140,23 @@ function frame(t) {
     const m = Math.round(C.markerPos(p, performance.now() - train.t0)); rect(x0 + m, 16, 1, 4, 2);
   }
   else if (mode === 'battle' && battle) {
-    const b = battle, mx = 2 + (b.lunge === 'me' ? 3 : 0), ox = 22 - (b.lunge === 'op' ? 3 : 0);
-    if (!(b.flash === 'me' && Math.floor(t / 80) % 2)) spr(spriteOf(b.me.form), mx, 4, false);
-    if (!(b.flash === 'op' && Math.floor(t / 80) % 2)) spr(spriteOf(b.op.form), ox, 4, true);
+    const b = battle, fx = b.fx && t < b.fx.at + HIT.end ? b.fx : null;
+    const since = fx ? t - fx.at : 0, handOn = fx && since < HIT.handEnd;
+    const blink = fx && !fx.miss && !handOn && Math.floor(t / 70) % 2;          // 맞은 쪽 깜빡임
+    const dodge = fx && fx.miss && !handOn ? 3 : 0;                              // 빗나가면 살짝 피함
+    if (!(blink && fx.target === 'me')) spr(spriteOf(b.me.form), 2 - (fx && fx.target === 'me' ? dodge : 0), 4, false);
+    if (!(blink && fx.target === 'op')) spr(spriteOf(b.op.form), 22 + (fx && fx.target === 'op' ? dodge : 0), 4, true);
+    if (handOn) {
+      // 공격하는 쪽 타입의 손을 상대 몬스터 몸 위에 덮어씌움 (손 모양 점만)
+      const g = HANDS[fx.type] || HANDS.muk, w = g[0].length, h = g.length, flip = fx.target === 'me';
+      const ox = (fx.target === 'op' ? 30 : 10) - Math.floor(w / 2), oy = 11 - Math.floor(h / 2) + (since < HIT.land ? -2 : 0);
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const c = g[y][flip ? w - 1 - x : x];
+        if (c === '#') px(ox + x, oy + y, 2); else if (c === 'o') px(ox + x, oy + y, 3);
+      }
+      if (fx.strong && since >= HIT.land && Math.floor(t / 90) % 2)             // 상성 유리: 네 귀퉁이 번쩍
+        [[-2, -2], [w + 1, -2], [-2, h + 1], [w + 1, h + 1]].forEach(([dx, dy]) => px(ox + dx, oy + dy, 2));
+    }
     const hb = (x, cur, max) => { const w = Math.max(0, Math.round(16 * cur / max)); for (let i = 0; i < 16; i++) px(x + i, 1, i < w ? 2 : 1); };
     hb(2, b.mh, b.me.hp); hb(22, b.oh, b.op.hp);
   }
@@ -274,7 +296,7 @@ function startBattle(id) {
   run(async () => {
     const d = await api('/battle', { opponent: id });
     const b = d.battle;
-    battle = { mult: b.mult, me: b.me, op: b.op, mh: b.me.hp, oh: b.op.hp, events: b.events, win: b.win, i: 0, lunge: null, flash: null, result: d };
+    battle = { mult: b.mult, me: b.me, op: b.op, mh: b.me.hp, oh: b.op.hp, events: b.events, win: b.win, i: 0, fx: null, result: d };
     mode = 'battle'; $('battleCard').hidden = false; $('battleTitle').textContent = `${b.me.name} vs ${b.op.name}`; $('battleLog').innerHTML = '';
     window.scrollTo({ top: 0, behavior: 'smooth' });
     if (b.me.type && b.op.type) {
@@ -292,15 +314,22 @@ function describe(e) {
 function step() {
   const b = battle; if (!b) return;
   if (b.i >= b.events.length) return finishBattle();
-  const e = b.events[b.i++]; b.lunge = e.who; b.flash = e.miss ? null : (e.who === 'me' ? 'op' : 'me');
-  if (!e.miss) { b.mh = e.mh; b.oh = e.oh; }
-  const [t, c] = describe(e); logLine(t, c);
-  battleTimer = setTimeout(() => { b.lunge = null; b.flash = null; battleTimer = setTimeout(step, 260); }, 440);
+  const e = b.events[b.i++];
+  b.fx = { at: performance.now(), type: (e.who === 'me' ? b.me : b.op).type, target: e.who === 'me' ? 'op' : 'me', miss: !!e.miss, strong: e.eff === 'up' };
+  // 손이 사라지는 순간 체력이 줄고 로그가 나옴
+  b.pending = e;
+  battleTimer = setTimeout(() => {
+    b.pending = null;
+    if (!e.miss) { b.mh = e.mh; b.oh = e.oh; }
+    const [t, c] = describe(e); logLine(t, c);
+    battleTimer = setTimeout(step, HIT.next - HIT.handEnd);
+  }, HIT.handEnd);
 }
 $('bSkip').onclick = () => {
   const b = battle; if (!b) return; clearTimeout(battleTimer);
+  if (b.pending) { const e = b.pending; b.pending = null; if (!e.miss) { b.mh = e.mh; b.oh = e.oh; } const [t, c] = describe(e); logLine(t, c); }
   while (b.i < b.events.length) { const e = b.events[b.i++]; if (!e.miss) { b.mh = e.mh; b.oh = e.oh; } const [t, c] = describe(e); logLine(t, c); }
-  b.lunge = b.flash = null; finishBattle();
+  b.fx = null; finishBattle();
 };
 function finishBattle() {
   const b = battle; if (!b || b.done) return; b.done = true;

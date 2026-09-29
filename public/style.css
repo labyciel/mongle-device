@@ -2,7 +2,7 @@
 :root{
   --bg:#E6E9EE; --surface:#F7F8FA; --ink:#1E232B; --muted:#5B6370; --line:#CFD4DC;
   --shell:#E0662F; --shell-dark:#A9441A; --shell-hi:#F4A274; --shell-ink:#3A1606;
-  --lcd:#A3B392; --lcd-on:#243020; --lcd-mid:#56684A; --lcd-ghost:#97A887;
+  --lcd:#A3B392; --lcd-on:#243020; --lcd-mid:#56684A; --lcd-ghost:#97A887; --lcd-hi:#C8D4AA;
   --accent:#D9582A; --accent-ink:#FFFFFF;
   --good:#2F8445; --warn:#B87E0C; --bad:#BF3A2F;
   --f-display:"Do Hyeon","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
