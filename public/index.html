@@ -40,6 +40,7 @@
   .rpspad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
   .rpspad .stop{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 0 12px;font-size:22px;touch-action:manipulation}
   .rpspad canvas{width:44px;height:44px;image-rendering:pixelated}
+  .stop .key{font-size:15px;margin-left:3px;opacity:.75}
   .ask{position:absolute;left:50%;top:18px;transform:translateX(-50%);padding:5px 14px;border-radius:10px;font-family:var(--f-display);font-size:20px;line-height:1.2;white-space:nowrap;pointer-events:none;box-shadow:0 3px 0 rgba(0,0,0,.22);z-index:5}
   .ask.win{background:#FFF8EC;color:#2B2F33}
   .ask.lose{background:#2B2F33;color:#FFD9A8;outline:2px solid #FFD9A8}
@@ -50,16 +51,17 @@
   .tend span{color:#7C876A}
   .tend span.top{color:#1E2418}
   @media (prefers-reduced-motion: reduce){.say{transition:none}}
-  .trainpop{position:absolute;z-index:30;display:flex;flex-direction:column;gap:6px;padding:7px;border-radius:14px;background:#FFF1E6;box-shadow:0 8px 20px rgba(0,0,0,.28)}
-  .trainpop button{font-family:var(--f-display);font-size:16px;min-width:80px;padding:8px 10px;border:0;border-radius:10px;background:var(--shell);color:#fff;cursor:pointer;box-shadow:0 3px 0 var(--shell-dark);opacity:0;transform:translateY(-8px);animation:popin .16s ease-out forwards}
+  .trainpop{position:absolute;z-index:30;display:flex;flex-direction:column;gap:6px;padding:7px;border-radius:14px;background:var(--pop-bg);box-shadow:0 8px 20px rgba(0,0,0,.28)}
+  .trainpop button{font-family:var(--f-display);font-size:16px;min-width:80px;padding:8px 10px;border:0;border-radius:10px;background:var(--shell);color:var(--pop-btn-ink);cursor:pointer;box-shadow:0 3px 0 var(--shell-dark);opacity:0;transform:translateY(-8px);animation:popin .16s ease-out forwards}
   .trainpop button:nth-child(2){animation-delay:.05s}.trainpop button:nth-child(3){animation-delay:.1s}.trainpop button:nth-child(4){animation-delay:.15s}
   .trainpop button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--shell-dark)}
   .trainpop button:disabled{opacity:.45;cursor:not-allowed;animation:none}
   .trainpop button:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
-  .trainpop small{font-size:11px;line-height:1.3;color:#6B3A1C;text-align:center}
+  .trainpop small{font-size:11px;line-height:1.3;color:var(--shell-ink);text-align:center}
   @keyframes popin{to{opacity:1;transform:none}}
   @media (prefers-reduced-motion: reduce){.trainpop button{animation:none;opacity:1;transform:none}}
 </style>
+<script>/* 저장된 기기 색을 첫 화면부터 (깜빡임 방지) */try{var c=localStorage.getItem('mongle-color');if(c&&c!=='orange')document.documentElement.dataset.color=c}catch(e){}</script>
 </head>
 <body>
 <main class="wrap">
@@ -70,6 +72,9 @@
 
   <section class="device" aria-label="육성 기기">
     <div class="brand"><span>MONGLE-01</span><span id="clock">--:--</span></div>
+    <!-- 로그인 화면에서만: 기기 색 고르기 -->
+    <button class="colorArrow l" id="bColorPrev" type="button" aria-label="이전 기기 색" hidden>◀</button>
+    <button class="colorArrow r" id="bColorNext" type="button" aria-label="다음 기기 색" hidden>▶</button>
     <div class="bezel">
       <canvas id="lcd" width="400" height="200" aria-label="몬스터 화면"></canvas>
       <!-- 밥·놀기·청소 같은 돌봄 반응 말풍선: 화면 가운데 위 -->
@@ -98,14 +103,14 @@
     <button class="stop" id="bStop" hidden>멈춰!</button>
     <!-- 속도 훈련: 몽글이를 옆 줄로 옮기는 두 버튼 -->
     <div class="dpads" id="dPads" hidden>
-      <button class="stop" id="bLeft" aria-label="왼쪽으로">◀</button>
-      <button class="stop" id="bRight" aria-label="오른쪽으로">▶</button>
+      <button class="stop" id="bLeft" aria-label="왼쪽으로" aria-keyshortcuts="Q">◀<small class="key">(q)</small></button>
+      <button class="stop" id="bRight" aria-label="오른쪽으로" aria-keyshortcuts="E">▶<small class="key">(e)</small></button>
     </div>
     <!-- 공격 훈련: 묵·찌·빠 -->
     <div class="rpspad" id="rpsPad" hidden>
-      <button class="stop" data-h="muk"><canvas width="12" height="12"></canvas>묵</button>
-      <button class="stop" data-h="jji"><canvas width="12" height="12"></canvas>찌</button>
-      <button class="stop" data-h="ppa"><canvas width="12" height="12"></canvas>빠</button>
+      <button class="stop" data-h="muk" aria-keyshortcuts="Q"><canvas width="12" height="12"></canvas><span>묵<small class="key">(q)</small></span></button>
+      <button class="stop" data-h="jji" aria-keyshortcuts="W"><canvas width="12" height="12"></canvas><span>찌<small class="key">(w)</small></span></button>
+      <button class="stop" data-h="ppa" aria-keyshortcuts="E"><canvas width="12" height="12"></canvas><span>빠<small class="key">(e)</small></span></button>
     </div>
   </section>
 

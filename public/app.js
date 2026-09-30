@@ -6,6 +6,9 @@ const $ = id => document.getElementById(id);
 // ---------- 스프라이트 (16x16, '#' 진한 점, 'o' 중간 점) ----------
 const S = {
 egg:["................","......####......",".....#....#.....","....#......#....","...#..oo....#...","...#.oooo...#...","..#...oo.....#..","..#..........#..","..#.....oo...#..","..#....oooo..#..","..#.....oo...#..","...#........#...","...#........#...","....#......#....",".....######.....","................"],
+e_stripe:["................", "......####......", ".....#....#.....", "....#......#....", "...#..o..o..#...", "...#........#...", "..#..........#..", "..#o...o...o.#..", "..#.o.o.o.o.o#..", "..#..o...o...#..", "..#..........#..", "...#........#...", "...#..o..o..#...", "....#......#....", ".....######.....", "................"],
+e_star:["................", "......####......", ".....#....#.....", "....#......#....", "...#........#...", "...#....o...#...", "..#....ooo...#..", "..#..ooooooo.#..", "..#...ooooo..#..", "..#...oo.oo..#..", "..#..o.....o.#..", "...#........#...", "...#........#...", "....#......#....", ".....######.....", "................"],
+e_heart:["................", "......####......", ".....#....#.....", "....#......#....", "...#........#...", "...#........#...", "..#...oo.oo..#..", "..#..ooooooo.#..", "..#..ooooooo.#..", "..#...ooooo..#..", "..#....ooo...#..", "...#....o...#...", "...#........#...", "....#......#....", ".....######.....", "................"],
 mongsil:["................","................","................","................","......####......","....##oooo##....","...#oooooooo#...","..#oo#oooo#oo#..","..#oo#oooo#oo#..","..#oooooooooo#..","..#ooo#oo#ooo#..","..#oooo##oooo#..","...#oooooooo#...","....########....","................","................"],
 ppulmong:["................","...#........#...","...##......##...","....#.####.#....","....##oooo##....","...#oooooooo#...","..#oo##oo##oo#..","..#oo#.oo#.oo#..","..#oooooooooo#..","..#ooo####ooo#..","...#ooo##ooo#...","..##oooooooo##..",".#o#oooooooo#o#.","...#oo#..#oo#...","...###....###...","................"],
 dandanmong:["................","................",".....######.....","...##o#oo#o##...","..#oo#oooo#oo#..",".#oooo####oooo#.",".#o#o#oooo#o#o#.",".##############.","..#oooooooooo#..","..#o##oooo##o#..","..#o#.oooo#.o#..","..#oooo##oooo#..","...#oooooooo#...","...##o#..#o##...","...###....###...","................"],
@@ -72,6 +75,18 @@ const POOP = ["...#....","..#o#...","..###...",".#ooo#..",".#####..","#ooooo#.",
 // ---------- 상태 ----------
 const TOKEN_KEY = 'mongle-token';
 let token = null; try { token = localStorage.getItem(TOKEN_KEY); } catch (e) {}
+// 기기 색: 로그인 화면의 좌우 화살표로 고름. 가입·로그인 때 계정에 저장되고, 로그인하면 계정 색을 따름.
+// 이 기기에도 기억해서 로그인 전·첫 화면에 씀. 색 값은 style.css의 :root[data-color]
+const COLORS = C.DEVICE_COLORS;
+const COLOR_KEY = 'mongle-color';
+let colorIdx = 0, colorTouched = false;   // colorTouched: 로그인 화면에서 화살표로 바꿈 → 로그인할 때 계정 색도 바꿈 try { colorIdx = Math.max(0, COLORS.findIndex(c => c[0] === localStorage.getItem(COLOR_KEY))); } catch (e) {}
+function setColor(i, announce) {
+  colorIdx = (i + COLORS.length) % COLORS.length;
+  const [key, name] = COLORS[colorIdx];
+  if (key === 'orange') document.documentElement.removeAttribute('data-color'); else document.documentElement.dataset.color = key;
+  try { localStorage.setItem(COLOR_KEY, key); } catch (e) {}
+  if (announce) say(name);
+}
 let nick = '', pet = null, mine = [], maxEntries = 2, allowFast = false;   // 테스트 모드(빠른 성장)는 서버가 허용할 때만 보임
 let fighterId = null, picks = [];   // 출전할 내 몽글이, 무작위로 뽑힌 상대들
 let offset = 0;            // 서버시계 - 내 시계 (ms)
@@ -98,10 +113,13 @@ async function api(path, body) {
   if (data.now) { const rtt = Date.now() - sent; offset = data.now + rtt / 2 - Date.now(); }
   return data;
 }
+// shown: 화면 표시용으로 서버 시각까지 흘려 본 상태 (render가 1초마다 갱신). 똥·배고픔 알림은 이걸로 그림
+let shown = null;
 function apply(data) {
+  if (data.color) useColor(data.color);
   if ('pet' in data) {
     const prevForm = pet && pet.form;
-    pet = data.pet;
+    pet = data.pet; shown = null;
     if (warming && pet && pet.stage !== 'egg') { warming = false; clearInterval(warmT); warmT = null; }   // 품다가 부화함
     // 진화: 서버가 진화시킨 뒤 아직 안 본 장면(evoUnseen)이 있으면 보여 주고, 다 보면 서버에 알림
     const e = pet && pet.evoUnseen, key = e && `${e.from}>${e.to}@${e.at}`;
@@ -133,6 +151,7 @@ async function run(fn, onErr = toast) {
 // ---------- 화면 전환 ----------
 function show() {
   $('loginCard').hidden = !!token;
+  $('bColorPrev').hidden = $('bColorNext').hidden = !!token;   // 기기 색은 로그인 화면에서 고름
   $('startCard').hidden = !token || !!pet;
   $('game').hidden = !token || !pet;
   $('pad').hidden = !token || !pet || mode === 'train';
@@ -146,8 +165,10 @@ function logoutLocal() { token = null; pet = null; mine = []; fighterId = null; 
 async function doAuth(kind) {
   $('loginErr').textContent = '';
   try {
-    const d = await api('/' + kind, { nick: $('nickIn').value.trim(), pass: $('passIn').value });
-    token = d.token; nick = d.nick; try { localStorage.setItem(TOKEN_KEY, token); } catch (e) {}
+    const body = { nick: $('nickIn').value.trim(), pass: $('passIn').value };
+    if (kind === 'signup' || colorTouched) body.color = COLORS[colorIdx][0];
+    const d = await api('/' + kind, body);
+    token = d.token; nick = d.nick; colorTouched = false; useColor(d.color); try { localStorage.setItem(TOKEN_KEY, token); } catch (e) {}
     $('passIn').value = '';
     await loadMe();
   } catch (e) { $('loginErr').textContent = e.message; }
@@ -483,16 +504,17 @@ function frame(t) {
   else if (eat && eat.refuse && pet.stage !== 'egg' && t - eat.t0 < REFUSE.total) drawRefuse(t - eat.t0);   // 배불러서 거절
   else if (eat && !eat.refuse && pet.stage !== 'egg' && t - eat.t0 < EAT.total) drawEat(t - eat.t0);   // 밥 먹는 중 (똥은 잠깐 가림)
   else if (pet.stage === 'egg' && warming) {
-    const w = Math.floor(t / 120) % 4; spr(S.egg, 12 + (w === 1 ? 1 : w === 3 ? -1 : 0), 2, false);
+    const w = Math.floor(t / 120) % 4; spr(spriteOf(lookOf(pet)), 12 + (w === 1 ? 1 : w === 3 ? -1 : 0), 2, false);
     // 따뜻한 김: 알 양옆에서 올라가는 점
     const k = Math.floor(t / 150) % 4; [[9, 12 - k * 2], [30, 13 - k * 2], [8, 6 - k], [31, 7 - k]].forEach(([x, y]) => px(x, y, 3));
   }
-  else if (pet.stage === 'egg') { const w = Math.floor(t / 500) % 4; spr(S.egg, 12 + (w === 1 ? 1 : w === 3 ? -1 : 0), 2, false); }
+  else if (pet.stage === 'egg') { const w = Math.floor(t / 500) % 4; spr(spriteOf(lookOf(pet)), 12 + (w === 1 ? 1 : w === 3 ? -1 : 0), 2, false); }
   else {
     if (t - lastStep > 700) { lastStep = t; const d = Math.random() < .5 ? -1 : 1; wx = C.clamp(wx + d, 1, 14); facing = d; }
     const bob = Math.floor(t / 350) % 2; spr(spriteOf(lookOf(pet)), wx, 2 + bob, facing < 0);
+    const cur = shown || pet;   // 배고픔 알림은 1초마다 계산한 값, 똥은 서버가 확정한 값(생기면 render가 바로 서버에 물어봄)
     const spots = [[24, 12], [32, 12], [24, 3], [32, 3]]; for (let i = 0; i < pet.poops; i++) spr(POOP, spots[i][0], spots[i][1], false);
-    if (pet.hunger < 20 || pet.mood < 20) { rect(1, 1, 1, 4, 2); px(1, 6, 2); }   // 배고픔·심심 알림 (오른쪽 위는 묵·찌·빠 자리)
+    if (cur.hunger < 20 || cur.mood < 20) { rect(1, 1, 1, 4, 2); px(1, 6, 2); }   // 배고픔·심심 알림 (오른쪽 위는 묵·찌·빠 자리)
   }
   flush(inv);
   requestAnimationFrame(frame);
@@ -503,7 +525,7 @@ function meter(id, nid, v, max, cls) { const el = $(id); el.style.width = (100 *
 function render() {
   if (!pet) return;
   // 화면 표시용으로만 서버 시각까지 흘려봄 (저장은 서버가 함)
-  const v = JSON.parse(JSON.stringify(pet)); C.advance(v, serverNow());
+  const v = JSON.parse(JSON.stringify(pet)); C.advance(v, serverNow()); shown = v;
   const f = C.FORMS[v.form], bs = C.bstats(v);
   $('whoNick').textContent = nick;
   $('sName').textContent = v.name;
@@ -535,7 +557,7 @@ function render() {
   // 밥 먹는 연출·훈련·통신 중에는 다른 버튼을 막음 (한 번에 하나씩)
   const egg = v.stage === 'egg', adult = v.stage === 'adult', lock = busy || mode !== 'idle' || eating();
   // 성체는 더 돌보거나 키울 수 없음
-  $('bFeed').disabled = egg || adult || lock; $('bPlay').disabled = egg || adult || lock; $('bClean').disabled = egg || adult || lock || v.poops === 0;
+  $('bFeed').disabled = egg || adult || lock; $('bPlay').disabled = egg || adult || lock; $('bClean').disabled = egg || adult || lock || pet.poops === 0;
   $('bMainLbl').textContent = egg ? '품기' : '훈련'; $('bMain').disabled = adult || lock;
   document.querySelectorAll('[data-train]').forEach(b => b.disabled = egg || lock || v.energy < C.RULES.trainCost);
   if (egg || adult || lock) closeTrainPop();
@@ -552,9 +574,9 @@ function render() {
   $('fastCard').hidden = !allowFast;
   $('bFast').textContent = v.fast ? '끄기' : '켜기'; $('bFast').setAttribute('aria-pressed', !!v.fast); $('bFast').className = v.fast ? 'btn primary' : 'btn'; $('bFast').disabled = lock;
   $('lcdL').textContent = v.name;
-  // 화면에서 흘려 본 시간으로 진화할 때가 됐으면 서버에 바로 물어봄 (서버가 진화시키고 장면을 보냄)
-  if (v.stage !== pet.stage && mode === 'idle' && !busy && Date.now() - lastSync > 3000) { lastSync = Date.now(); loadMe().catch(() => {}); }
-  $('lcdR').textContent = egg ? '부화 대기' : `${v.stage === 'adult' ? kindText(v) : C.STAGE_KO[v.stage]}${v.poops ? ' · 똥' + v.poops : ''}`;
+  // 화면에서 흘려 본 시간으로 진화할 때가 됐거나 똥이 생겼으면 서버에 바로 물어봄 (서버가 진화·똥을 확정하고, 그 결과로 화면을 그림)
+  if ((v.stage !== pet.stage || v.poops > pet.poops) && mode === 'idle' && !busy && Date.now() - lastSync > 3000) { lastSync = Date.now(); loadMe().catch(() => {}); }
+  $('lcdR').textContent = egg ? '부화 대기' : `${v.stage === 'adult' ? kindText(v) : C.STAGE_KO[v.stage]}${pet.poops ? ' · 똥' + pet.poops : ''}`;
   renderArena(v);
 }
 // 기기 화면 오른쪽 위 묵·찌·빠: 가장 높은 타입 점수만 검게 (성체는 정해진 타입). 알·훈련·배틀 중엔 숨김
@@ -659,6 +681,11 @@ function entryRow(o, v, opt) {
 // 돌봄 반응은 기기 화면 가운데 위 말풍선으로 (다른 알림은 아래쪽 토스트 그대로)
 let sayT;
 function say(m) { if (!m) return; const t = $('say'); t.textContent = m; t.classList.add('on'); clearTimeout(sayT); sayT = setTimeout(() => t.classList.remove('on'), 2200); }
+$('bColorPrev').onclick = () => { colorTouched = true; setColor(colorIdx - 1, true); };
+$('bColorNext').onclick = () => { colorTouched = true; setColor(colorIdx + 1, true); };
+// 서버가 알려 준 계정 색으로 맞춤
+function useColor(c) { const i = COLORS.findIndex(x => x[0] === c); if (i >= 0 && i !== colorIdx) setColor(i, false); }
+setColor(colorIdx, false);
 const doAction = type => run(async () => {
   const d = await api('/action', { type }); apply(d); say(d.msg);
   if (type === 'feed') { const refuse = !!d.refuse; eat = { t0: performance.now(), refuse }; wx = 6; facing = 1; render(); setTimeout(render, (refuse ? REFUSE.total : EAT.total) + 30); }   // 고기 먹기 / 배부르면 거절 (끝나면 버튼 다시 켬)
@@ -727,7 +754,7 @@ document.querySelectorAll('[data-train]').forEach(b => b.onclick = () => run(asy
   train = { params: p, t0: performance.now(), taps: [], plan: G.plan ? G.plan(p) : null, rope: -1e9, flash: 0, from: 1, movedAt: -1e9, hits: [], fx: null };
   mode = 'train'; $('pad').hidden = true;
   PADS.forEach(id => $(id).hidden = id !== G.pads);
-  $('bStop').textContent = '터치!';
+  $('bStop').innerHTML = '터치!<small class="key">(스페이스바)</small>';   // 줄넘기: 스페이스바·엔터로도 됨
   document.querySelectorAll('#bStop, #dPads button, #rpsPad button').forEach(x => x.disabled = false);
   document.body.classList.add('gaming');   // 게임 중 스크롤·확대 막기
   renderTendency(pet);
@@ -779,11 +806,13 @@ document.addEventListener('pointerdown', e => {
   else if (gameOn('guard')) { e.preventDefault(); trainInput((tr, st, at) => guardTap(e, tr, st, at)); }
 }, { passive: false });
 document.querySelectorAll('#rpsPad [data-h]').forEach(b => b.addEventListener('pointerdown', e => { e.preventDefault(); rpsPlay(b.dataset.h); }));
+// 묵찌빠 키: q·w·e (한글 입력 상태여도 자판 위치로 받음), 숫자 1·2·3도 됨
+const RPS_KEY = { KeyQ: 0, KeyW: 1, KeyE: 2, Digit1: 0, Digit2: 1, Digit3: 2, Numpad1: 0, Numpad2: 1, Numpad3: 2 };
 document.addEventListener('keydown', e => {
   if (mode !== 'train' || !train) return;
-  if (gameOn('dodge') && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) { e.preventDefault(); dodgeMove(e.key === 'ArrowLeft' ? -1 : 1); }
+  if (gameOn('dodge') && (e.code === 'KeyQ' || e.code === 'KeyE')) { e.preventDefault(); if (!e.repeat) dodgeMove(e.code === 'KeyQ' ? -1 : 1); }   // q 왼쪽, e 오른쪽 (자판 위치라 한글 입력 상태도 됨)
   else if (gameOn('rope') && (e.code === 'Space' || e.code === 'Enter')) { e.preventDefault(); if (!e.repeat) ropeTap(); }
-  else if (gameOn('rps') && { 1: 1, 2: 1, 3: 1 }[e.key]) { e.preventDefault(); rpsPlay(C.TYPE_ORDER[e.key - 1]); }
+  else if (gameOn('rps') && RPS_KEY[e.code] != null) { e.preventDefault(); if (!e.repeat) rpsPlay(C.TYPE_ORDER[RPS_KEY[e.code]]); }
 });
 // 묵·찌·빠 버튼 아이콘 (작은 손 도트)
 document.querySelectorAll('#rpsPad [data-h]').forEach(b => {

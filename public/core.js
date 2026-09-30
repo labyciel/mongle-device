@@ -64,7 +64,7 @@
   // LOOKS의 이름은 개발할 때 부르기 위한 이름이에요. 게임 화면에는 표시하지 않아요 (사용자 결정).
   // 같은 단계·타입 안에서 부화/진화할 때 무작위로 정해짐. 그림 데이터는 app.js의 S (키가 같음)
   const LOOKS = {
-    egg: '알',
+    egg: '알', e_stripe: '줄무늬알', e_star: '별알', e_heart: '하트알',
     b_drop: '방울몽', b_fluff: '복슬몽', b_slug: '꼬물몽',
     r_horn: '뿔몽', r_wing2: '날개몽', r_shell2: '단단몽', r_guard: '방패몽', r_bolt: '번개몽', r_band: '두건몽',
     mukfist: '묵주먹', ironshell: '묵바위', mukpebble: '묵돌이', c_muk_atk: '묵버럭', c_muk_def: '묵졸음', c_muk_all: '묵만세',
@@ -74,6 +74,7 @@
     mongsil: '몽실', ppulmong: '뿔몽', dandanmong: '단단몽', flamehorn: '찌칼날', jjicrab: '찌집게', ppashield: '빠방패', ppahand: '빠펄럭'
   };
   const POOLS = {
+    egg: ['egg', 'e_stripe', 'e_star', 'e_heart'],   // 알 받을 때 무작위
     baby: ['b_drop', 'b_fluff', 'b_slug'],
     rookie: { atk: ['r_horn', 'r_wing2'], def: ['r_shell2', 'r_guard'], spd: ['r_bolt', 'r_band'] },   // 훈련을 가장 많이 한 쪽 (decideStyle)
     adult: {
@@ -100,6 +101,9 @@
     return pool.includes(f.sprite) ? f.sprite : pickStable(pool, seed);
   }
   const STAT_KO = { hp: '체력', atk: '공격력', def: '방어력', spd: '속도' };
+  // 기기 색 (계정에 저장, 첫 번째가 기본). 색 값은 style.css의 :root[data-color]
+  const DEVICE_COLORS = [['orange', '주황'], ['strawberry', '딸기우유'], ['peach', '복숭아'], ['lemon', '레몬'], ['mint', '민트'], ['sky', '하늘'], ['lavender', '라벤더']];
+  const colorOK = c => DEVICE_COLORS.some(x => x[0] === c);
 
   // 시간·행동 규칙
   const RULES = {
@@ -108,6 +112,7 @@
     // 알 10분 → 유체 12시간 → 아성체 24시간 → 성체. 건강도 80% 이상 1배, 50% 이상 0.5배, 그 밑은 멈춤
     grow: { egg: 600, baby: 12 * 3600, rookie: 24 * 3600 },
     healthFull: 80, healthHalf: 50,
+    trainStale: 65,   // 훈련 시작 뒤 이 초가 지나도 안 끝나면 버려진 훈련(에너지 안 씀, 안 한 것으로)
     warmMul: 10, warmHold: 120,   // 알 품기: 누르고 있는 동안 10배(10분 → 1분) (한 번 누르면 최대 2분, 계속 누르면 연장)
     energyEvery: 180, maxEnergy: 100,  // 에너지 3분에 1 회복, 최대 100 (유체~성체 36시간 동안 훈련 최대 약 41번)
     hungerEvery: 432, moodEvery: 576, poopEvery: 3 * 3600,   // 배부름 12시간, 기분 16시간에 100→0, 똥 3시간마다 1개
@@ -143,7 +148,7 @@
 
   function newPet(name, now, rnd = Math.random) {
     return {
-      v: 4, name, stage: 'egg', form: 'egg', look: 'egg', type: null, style: null,
+      v: 4, name, stage: 'egg', form: 'egg', look: pickRandom(POOLS.egg, rnd), type: null, style: null,
       grow: 0, warmUntil: 0, evoUnseen: null,
       base: null,               // 기본 능력치는 부화할 때 정해짐
       hunger: 80, mood: 80, energy: 100, poops: 0, mistakes: 0,
@@ -615,7 +620,7 @@
       hp: src.hp, atk: src.atk, def: src.def, spd: src.spd };
   }
 
-  return { FORMS, LOOKS, POOLS, ROOKIE_FORM, rookieSide, legacyLook, TYPES, TYPE_ORDER, STYLES, STAGE_KO, STAT_KO, RULES, ADV, DIS, LEGACY,
+  return { DEVICE_COLORS, colorOK, FORMS, LOOKS, POOLS, ROOKIE_FORM, rookieSide, legacyLook, TYPES, TYPE_ORDER, STYLES, STAGE_KO, STAT_KO, RULES, ADV, DIS, LEGACY,
     arenaEnergy, arenaNextIn, spendArenaEnergy, rankEntries, entryFromPet, publicEntry,
     clamp, newPet, advance, health, growRate, evoLeft, warm, migrate, migrateEntry, topType, tendency, decideStyle,
     checkEvo, bstats, rollBase, applyAction,

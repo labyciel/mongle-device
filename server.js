@@ -29,6 +29,8 @@ CREATE INDEX IF NOT EXISTS entries_user ON entries(user_id);
 CREATE TABLE IF NOT EXISTS matches (winner INTEGER, loser INTEGER, n INTEGER DEFAULT 0, PRIMARY KEY (winner, loser));
 CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT);
 `);
+// 기기 색 칸 추가 (예전 DB에 없으면 한 번만)
+if (!db.prepare("SELECT 1 FROM pragma_table_info('users') WHERE name = 'color'").get()) db.exec('ALTER TABLE users ADD COLUMN color TEXT');
 // 이전 버전(계정당 1마리) 결투장 데이터를 한 번만 옮김
 if (!db.prepare("SELECT v FROM meta WHERE k = 'arena_v2'").get()) {
   db.transaction(() => {
@@ -39,6 +41,8 @@ if (!db.prepare("SELECT v FROM meta WHERE k = 'arena_v2'").get()) {
 
 const q = {
   setPass: db.prepare('UPDATE users SET pass = ? WHERE id = ?'),
+  setColor: db.prepare('UPDATE users SET color = ? WHERE id = ?'),
+  userColor: db.prepare('SELECT color FROM users WHERE id = ?'),
   userByNick: db.prepare('SELECT * FROM users WHERE nick = ?'),
   userById: db.prepare('SELECT id, nick FROM users WHERE id = ?'),
   addUser: db.prepare('INSERT INTO users (nick, pass, created) VALUES (?, ?, ?)'),
@@ -129,8 +133,10 @@ function myEntries(uid) {
   return list.filter(e => e.uid === uid).sort((a, b) => a.registeredAt - b.registeredAt)
     .map(e => Object.assign({}, e, { total: list.length }));
 }
+// 계정의 기기 색 (없으면 기본 주황)
+const colorOf = uid => { const r = q.userColor.get(uid); return r && Core.colorOK(r.color) ? r.color : Core.DEVICE_COLORS[0][0]; };
 function payload(uid, pet, extra) {
-  return Object.assign({ now: Date.now(), pet, allowFast: fastOK(uid), mine: myEntries(uid), maxEntries: Core.RULES.maxEntries }, extra || {});
+  return Object.assign({ now: Date.now(), pet, color: colorOf(uid), allowFast: fastOK(uid), mine: myEntries(uid), maxEntries: Core.RULES.maxEntries }, extra || {});
 }
 
 // ---------- 계정 ----------
@@ -140,9 +146,11 @@ app.post('/api/signup', (req, res) => {
   if (pass.length < 4 || pass.length > 64) return fail(res, 400, '비밀번호는 4자 이상이어야 해요.');
   if (q.userByNick.get(nick) || nick.toLowerCase() === ADMIN_NICK) return fail(res, 409, '이미 있는 닉네임이에요.');
   const info = q.addUser.run(nick, hashPass(pass), Date.now());
+  // 로그인 화면에서 고른 기기 색을 계정에 저장
+  if (Core.colorOK(req.body.color)) q.setColor.run(req.body.color, info.lastInsertRowid);
   const token = crypto.randomBytes(24).toString('hex');
   q.addSession.run(token, info.lastInsertRowid, Date.now());
-  res.json({ token, nick });
+  res.json({ token, nick, color: colorOf(info.lastInsertRowid) });
 });
 
 const loginFails = new Map();
@@ -157,9 +165,11 @@ app.post('/api/login', (req, res) => {
     return fail(res, 401, '닉네임 또는 비밀번호가 맞지 않아요.');
   }
   loginFails.delete(key);
+  // 로그인 화면에서 색을 바꿨으면(color를 보냄) 계정 색을 바꿈, 안 보냈으면 계정 색 그대로
+  if (Core.colorOK(req.body.color)) q.setColor.run(req.body.color, u.id);
   const token = crypto.randomBytes(24).toString('hex');
   q.addSession.run(token, u.id, Date.now());
-  res.json({ token, nick: u.nick });
+  res.json({ token, nick: u.nick, color: colorOf(u.id) });
 });
 
 app.post('/api/logout', auth, (req, res) => { q.delSession.run(req.token); res.json({ ok: true }); });
@@ -204,7 +214,7 @@ app.post('/api/action', auth, throttle, (req, res) => {
   if (!pet) return fail(res, 404, '먼저 알을 받아 주세요.');
   const type = String(req.body.type || '');
   if (type === 'fast' && !fastOK(req.uid)) return fail(res, 403, '빠른 성장은 관리자만 쓸 수 있어요.');
-  if (trains.has(req.uid)) return fail(res, 409, '훈련 중이에요.');
+  if (activeTrain(req.uid)) return fail(res, 409, '훈련 중이에요.');
   const r = Core.applyAction(pet, type);
   savePet(req.uid, pet);
   res.json(payload(req.uid, pet, { ok: r.ok, msg: r.msg, info: r.info, refuse: !!r.refuse }));
@@ -212,6 +222,12 @@ app.post('/api/action', auth, throttle, (req, res) => {
 
 // ---------- 훈련 (시작 1번 + 끝 1번, 판정은 서버가 다시 계산) ----------
 const trains = new Map(); // uid -> {kind, params, start}
+// 진행 중인 훈련. 화면이 꺼져서 trainStale초 넘게 안 끝난 훈련은 버림(에너지·배부름 안 씀, 훈련 안 한 것으로)
+function activeTrain(uid) {
+  const t = trains.get(uid);
+  if (t && Date.now() - t.start > Core.RULES.trainStale * 1000) { trains.delete(uid); return null; }
+  return t || null;
+}
 app.post('/api/train/start', auth, throttle, (req, res) => {
   const pet = loadPet(req.uid);
   if (!pet) return fail(res, 404, '먼저 알을 받아 주세요.');
@@ -227,7 +243,7 @@ app.post('/api/train/start', auth, throttle, (req, res) => {
 });
 
 app.post('/api/train/stop', auth, (req, res) => {
-  const t = trains.get(req.uid);
+  const t = activeTrain(req.uid);
   if (!t) return fail(res, 409, '진행 중인 훈련이 없어요.');
   trains.delete(req.uid);
   const pet = loadPet(req.uid);

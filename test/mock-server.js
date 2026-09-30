@@ -20,6 +20,8 @@
   }
 
   const trains = {}, lastHit = {};
+  // server.js activeTrain과 같음: trainStale초 넘게 안 끝난 훈련은 버림(안 한 것으로)
+  const activeTrain = uid => { const t = trains[uid]; if (t && Date.now() - t.start > C.RULES.trainStale * 1000) { delete trains[uid]; return null; } return t || null; };
   const res = (status, obj) => new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json' } });
   const fail = (code, msg) => res(code, { error: msg });
   async function hash(pw) {
@@ -50,7 +52,8 @@
     const list = rankedArena(uid);
     return list.filter(e => e.uid === uid).sort((a, b) => a.registeredAt - b.registeredAt).map(e => Object.assign({}, e, { total: list.length }));
   }
-  function payload(uid, pet, extra) { return Object.assign({ now: Date.now(), pet, allowFast: fastOK(uid), mine: myEntries(uid), maxEntries: C.RULES.maxEntries }, extra || {}); }
+  const colorOf = uid => { const u = st.users[uid]; return u && C.colorOK(u.color) ? u.color : C.DEVICE_COLORS[0][0]; };
+  function payload(uid, pet, extra) { return Object.assign({ now: Date.now(), pet, color: colorOf(uid), allowFast: fastOK(uid), mine: myEntries(uid), maxEntries: C.RULES.maxEntries }, extra || {}); }
   const myRows = uid => Object.entries(st.entries).filter(([, r]) => r.user === uid).map(([id, r]) => Object.assign({ id: Number(id) }, r)).sort((a, b) => a.created - b.created);
 
   async function handle(path, method, body, authz) {
@@ -63,11 +66,13 @@
         if (pass.length < 4 || pass.length > 64) return fail(400, '비밀번호는 4자 이상이어야 해요.');
         if (findNick(nick) || nick.toLowerCase() === ADMIN_NICK) return fail(409, '이미 있는 닉네임이에요.');
         const id = st.nextId++; st.users[id] = { id, nick, pass: await hash(pass) };
-        const t = token(); st.sessions[t] = id; save(); return res(200, { token: t, nick });
+        if (C.colorOK(body.color)) st.users[id].color = body.color;   // 로그인 화면에서 고른 기기 색
+        const t = token(); st.sessions[t] = id; save(); return res(200, { token: t, nick, color: colorOf(id) });
       }
       const u = findNick(nick);
       if (!u || !u.pass || u.pass !== await hash(pass)) return fail(401, '닉네임 또는 비밀번호가 맞지 않아요.');
-      const t = token(); st.sessions[t] = u.id; save(); return res(200, { token: t, nick: u.nick });
+      if (C.colorOK(body.color)) u.color = body.color;   // 로그인 화면에서 색을 바꿨을 때만 보냄
+      const t = token(); st.sessions[t] = u.id; save(); return res(200, { token: t, nick: u.nick, color: colorOf(u.id) });
     }
     const m = /^Bearer (.+)$/.exec(authz || ''); const uid = m && st.sessions[m[1]];
     if (!uid) return fail(401, '다시 로그인해 주세요.');
@@ -95,7 +100,7 @@
     if (path === '/seen') { pet.evoUnseen = null; savePet(uid, pet); return res(200, payload(uid, pet, {})); }
     if (path === '/action') {
       if (body.type === 'fast' && !fastOK(uid)) return fail(403, '빠른 성장은 관리자만 쓸 수 있어요.');
-      if (trains[uid]) return fail(409, '훈련 중이에요.');
+      if (activeTrain(uid)) return fail(409, '훈련 중이에요.');
       const r = C.applyAction(pet, String(body.type || '')); savePet(uid, pet);
       return res(200, payload(uid, pet, { ok: r.ok, msg: r.msg, info: r.info, refuse: !!r.refuse }));
     }
@@ -109,7 +114,7 @@
       return res(200, payload(uid, pet, { train: { kind, params } }));
     }
     if (path === '/train/stop') {
-      const t = trains[uid]; if (!t) return fail(409, '진행 중인 훈련이 없어요.'); delete trains[uid];
+      const t = activeTrain(uid); if (!t) return fail(409, '진행 중인 훈련이 없어요.'); delete trains[uid];
       const ok = C.trainJudge(t.params, body.taps, Date.now() - t.start);
       const r = C.applyTraining(pet, t.kind, ok); savePet(uid, pet);
       return res(200, payload(uid, pet, { result: t.params.game, ok, msg: r.msg }));
