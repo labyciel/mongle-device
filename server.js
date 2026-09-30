@@ -11,8 +11,8 @@ const Core = require('./public/core.js');
 const PORT = process.env.PORT || 3000;
 // 저장 위치: 직접 지정(DATA_DIR) > Railway 저장 공간(자동) > 이 폴더 안의 data
 const DATA_DIR = process.env.DATA_DIR || process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, 'data');
-// 빠른 성장(테스트 모드): 기본은 꺼짐(화면에 안 보임). 개발·테스트할 때만 Variables에 ALLOW_FAST=1
-const ALLOW_FAST = process.env.ALLOW_FAST === '1';
+// 빠른 성장(테스트 모드): 관리자 계정(admin)으로 로그인했을 때만 보이고 쓸 수 있음
+const ADMIN_NICK = 'admin', ADMIN_PASS = process.env.ADMIN_PASS || '1133';
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 const db = new Database(path.join(DATA_DIR, 'mongle.db'));
@@ -38,6 +38,7 @@ if (!db.prepare("SELECT v FROM meta WHERE k = 'arena_v2'").get()) {
 }
 
 const q = {
+  setPass: db.prepare('UPDATE users SET pass = ? WHERE id = ?'),
   userByNick: db.prepare('SELECT * FROM users WHERE nick = ?'),
   userById: db.prepare('SELECT id, nick FROM users WHERE id = ?'),
   addUser: db.prepare('INSERT INTO users (nick, pass, created) VALUES (?, ?, ?)'),
@@ -64,6 +65,13 @@ function hashPass(pw) {
   const h = crypto.scryptSync(pw, salt, 32).toString('hex');
   return salt + ':' + h;
 }
+// 관리자 계정은 서버가 켜질 때 만들어 둠 (비밀번호는 ADMIN_PASS, 기본 1133). 다른 사람은 admin으로 가입할 수 없음
+const ADMIN_ID = (() => {
+  const u = q.userByNick.get(ADMIN_NICK);
+  if (u) { q.setPass.run(hashPass(ADMIN_PASS), u.id); return u.id; }
+  return Number(q.addUser.run(ADMIN_NICK, hashPass(ADMIN_PASS), Date.now()).lastInsertRowid);
+})();
+const fastOK = uid => uid === ADMIN_ID;
 function checkPass(pw, stored) {
   const [salt, h] = stored.split(':');
   const test = crypto.scryptSync(pw, salt, 32);
@@ -97,7 +105,7 @@ function loadPet(uid) {
   const row = q.getPet.get(uid);
   if (!row) return null;
   const pet = JSON.parse(row.data);
-  if (!ALLOW_FAST) pet.fast = false;   // 테스트 모드를 끈 서버에서는 켜 둔 몽글이도 보통 속도로
+  if (!fastOK(uid)) pet.fast = false;   // 관리자가 아니면 테스트 모드는 늘 꺼짐
   Core.advance(pet, Date.now());
   return pet;
 }
@@ -122,7 +130,7 @@ function myEntries(uid) {
     .map(e => Object.assign({}, e, { total: list.length }));
 }
 function payload(uid, pet, extra) {
-  return Object.assign({ now: Date.now(), pet, allowFast: ALLOW_FAST, mine: myEntries(uid), maxEntries: Core.RULES.maxEntries }, extra || {});
+  return Object.assign({ now: Date.now(), pet, allowFast: fastOK(uid), mine: myEntries(uid), maxEntries: Core.RULES.maxEntries }, extra || {});
 }
 
 // ---------- 계정 ----------
@@ -130,7 +138,7 @@ app.post('/api/signup', (req, res) => {
   const nick = String(req.body.nick || '').trim(), pass = String(req.body.pass || '');
   if (!/^[\p{L}\p{N}_]{2,12}$/u.test(nick)) return fail(res, 400, '닉네임은 2~12자의 한글, 영문, 숫자, _ 만 쓸 수 있어요.');
   if (pass.length < 4 || pass.length > 64) return fail(res, 400, '비밀번호는 4자 이상이어야 해요.');
-  if (q.userByNick.get(nick)) return fail(res, 409, '이미 있는 닉네임이에요.');
+  if (q.userByNick.get(nick) || nick.toLowerCase() === ADMIN_NICK) return fail(res, 409, '이미 있는 닉네임이에요.');
   const info = q.addUser.run(nick, hashPass(pass), Date.now());
   const token = crypto.randomBytes(24).toString('hex');
   q.addSession.run(token, info.lastInsertRowid, Date.now());
@@ -170,10 +178,10 @@ app.post('/api/pet', auth, throttle, (req, res) => {
   const pet = Core.newPet(name, Date.now());
   savePet(req.uid, pet);
   trains.delete(req.uid);
-  res.json(payload(req.uid, pet, { msg: '알을 받았어요. 1시간 뒤 부화해요. 품기를 누르고 있으면 3배 빨라져요.' }));
+  res.json(payload(req.uid, pet, { msg: '알을 받았어요. 10분 뒤 부화해요. 품기를 누르고 있으면 10배 빨라져요.' }));
 });
 
-// 알 품기: 누르고 있는 동안 시간 3배 (on: 누르기 시작/계속, off: 뗌). 연타 제한 없음
+// 알 품기: 누르고 있는 동안 시간 10배 (on: 누르기 시작/계속, off: 뗌). 연타 제한 없음
 app.post('/api/warm', auth, (req, res) => {
   const pet = loadPet(req.uid);
   if (!pet) return fail(res, 404, '먼저 알을 받아 주세요.');
@@ -195,7 +203,7 @@ app.post('/api/action', auth, throttle, (req, res) => {
   const pet = loadPet(req.uid);
   if (!pet) return fail(res, 404, '먼저 알을 받아 주세요.');
   const type = String(req.body.type || '');
-  if (type === 'fast' && !ALLOW_FAST) return fail(res, 403, '이 서버에서는 빠른 성장을 쓸 수 없어요.');
+  if (type === 'fast' && !fastOK(req.uid)) return fail(res, 403, '빠른 성장은 관리자만 쓸 수 있어요.');
   if (trains.has(req.uid)) return fail(res, 409, '훈련 중이에요.');
   const r = Core.applyAction(pet, type);
   savePet(req.uid, pet);

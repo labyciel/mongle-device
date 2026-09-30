@@ -6,40 +6,52 @@
 
   // ---------- 타입 (묵·찌·빠) ----------
   // beats: 이 타입이 유리한 상대
+  // skill: 타입 기술(액티브). 공격할 때 p 확률로 발동, 피해 mult배 (피할 수 있고 치명타와 겹침)
   const TYPES = {
-    muk: { name: '묵', beats: 'jji' },
-    jji: { name: '찌', beats: 'ppa' },
-    ppa: { name: '빠', beats: 'muk' }
+    muk: { name: '묵', beats: 'jji', skill: { name: '돌주먹', mult: 1.3, p: 0.2 } },
+    jji: { name: '찌', beats: 'ppa', skill: { name: '손가락찌르기', mult: 1.3, p: 0.2 } },
+    ppa: { name: '빠', beats: 'muk', skill: { name: '백열장', mult: 1.3, p: 0.2 } }
   };
   const TYPE_ORDER = ['muk', 'jji', 'ppa'];
-  const ADV = 1.3, DIS = 0.8;   // 유리할 때 / 불리할 때 주는 피해 배수
+  const ADV = 1.15, DIS = 0.9;  // 유리할 때 / 불리할 때 주는 피해 배수 (상성이 승패를 다 정하지 않게 약하게)
 
-  // ---------- 성체 형태 (공격형·방어형·만능형) ----------
+  // ---------- 성체 성향 (공격형·방어형·속도형) ----------
+  // 훈련을 가장 많이 한 능력치로 정해짐. 성향마다 패시브(맞을 때마다 쌓임) 1개 + 액티브(능력치 500 이상일 때 10%) 1개
+  // passive.stat: 맞을 때마다 그 값이 1%씩 오름 (dodge는 회피율 +1%p)
+  // active.need: 발동 조건 능력치(배틀 수치) ≥ 500
   const STYLES = {
-    atk: { name: '공격형', mult: { atk: 1.3, def: 0.95 } },
-    def: { name: '방어형', mult: { def: 1.3, hp: 1.15, atk: 0.95 } },
-    all:     { name: '만능형',   how: '공격력과 방어력이 비슷함',          mult: { hp: 1.08, atk: 1.12, def: 1.12, spd: 1.05 } }
+    atk: { name: '공격형', mult: { atk: 1.3, def: 0.95 },
+      passive: { name: '분노', stat: 'atk' }, active: { name: '쌔게때리기', need: 'atk', p: 0.1 } },          // 맞히면 상대 1번 기절
+    def: { name: '방어형', mult: { def: 1.3, hp: 1.15, atk: 0.95 },
+      passive: { name: '웅크리기', stat: 'def' }, active: { name: '가시세우기', need: 'def', p: 0.1 } },       // 맞을 때 공격을 그대로 되돌림
+    spd: { name: '속도형', mult: { spd: 1.3, def: 0.95 },
+      passive: { name: '잔상', stat: 'dodge' }, active: { name: '두번때리기', need: 'spd', p: 0.1 } }          // 한 번 더 공격
   };
+  const SKILL_NEED = 500, PASSIVE_STEP = 0.01;
   const ADULT_NAMES = {
-    muk: { atk: '묵주먹', def: '묵바위', all: '묵돌이' },
-    jji: { atk: '찌칼날', def: '찌집게', all: '찌깡총' },
-    ppa: { atk: '빠폭풍', def: '빠방패', all: '빠펄럭' }
+    muk: { atk: '묵주먹', def: '묵바위', spd: '묵돌이' },
+    jji: { atk: '찌칼날', def: '찌집게', spd: '찌깡총' },
+    ppa: { atk: '빠폭풍', def: '빠방패', spd: '빠펄럭' }
   };
   // 화면에서 쓰는 그림 이름
   const ADULT_SPRITES = {
-    muk: { atk: 'mukfist', def: 'ironshell', all: 'mukpebble' },
-    jji: { atk: 'flamehorn', def: 'jjicrab', all: 'jjibunny' },
-    ppa: { atk: 'galewing', def: 'ppashield', all: 'ppahand' }
+    muk: { atk: 'mukfist', def: 'ironshell', spd: 'mukpebble' },
+    jji: { atk: 'flamehorn', def: 'jjicrab', spd: 'jjibunny' },
+    ppa: { atk: 'galewing', def: 'ppashield', spd: 'ppahand' }
   };
 
   const FORMS = {
     egg:        { name: '알',     stage: 'egg' },
     mongsil:    { name: '몽실',   stage: 'baby',   how: 'Lv.10에 알에서 부화' },
     ppulmong:   { name: '뿔몽',   stage: 'rookie', atk: 1.15 },
-    dandanmong: { name: '단단몽', stage: 'rookie', def: 1.15, hp: 1.05 }
+    dandanmong: { name: '단단몽', stage: 'rookie', def: 1.15, hp: 1.05 },
+    nalssaenmong: { name: '날쌘몽', stage: 'rookie', spd: 1.15, sprite: 'r_bolt' }
   };
+  // 아성체 갈래(공격 쪽·방어 쪽·속도 쪽) ↔ 형태
+  const ROOKIE_FORM = { atk: 'ppulmong', def: 'dandanmong', spd: 'nalssaenmong' };
+  const rookieSide = form => Object.keys(ROOKIE_FORM).find(k => ROOKIE_FORM[k] === form) || 'atk';
   TYPE_ORDER.forEach(t => {
-    ['atk', 'def', 'all'].forEach(s => {
+    ['atk', 'def', 'spd'].forEach(s => {
       FORMS[`${t}_${s}`] = Object.assign({ name: ADULT_NAMES[t][s], stage: 'adult', type: t, style: s, sprite: ADULT_SPRITES[t][s] }, STYLES[s].mult);
     });
   });
@@ -54,7 +66,7 @@
   const LOOKS = {
     egg: '알',
     b_drop: '방울몽', b_fluff: '복슬몽', b_slug: '꼬물몽',
-    r_horn: '뿔몽', r_wing2: '날개몽', r_shell2: '단단몽', r_guard: '방패몽',
+    r_horn: '뿔몽', r_wing2: '날개몽', r_shell2: '단단몽', r_guard: '방패몽', r_bolt: '번개몽', r_band: '두건몽',
     mukfist: '묵주먹', ironshell: '묵바위', mukpebble: '묵돌이', c_muk_atk: '묵버럭', c_muk_def: '묵졸음', c_muk_all: '묵만세',
     jjibunny: '찌깡총', c_jji_def: '찌집게', c_jji_all: '찌토끼', j_blade_arms: '찌가위손', j_crest_bird: '찌볏새', j_cross_horn: '찌뿔이',
     galewing: '빠폭풍', c_ppa_atk: '빠파닥', c_ppa_def: '빠우산', c_ppa_all: '빠손볏',
@@ -63,7 +75,7 @@
   };
   const POOLS = {
     baby: ['b_drop', 'b_fluff', 'b_slug'],
-    rookie: { atk: ['r_horn', 'r_wing2'], def: ['r_shell2', 'r_guard'] },   // 공격력 ≥ 방어력이면 atk 쪽
+    rookie: { atk: ['r_horn', 'r_wing2'], def: ['r_shell2', 'r_guard'], spd: ['r_bolt', 'r_band'] },   // 훈련을 가장 많이 한 쪽 (decideStyle)
     adult: {
       muk: ['mukfist', 'ironshell', 'mukpebble', 'c_muk_atk', 'c_muk_def', 'c_muk_all'],
       jji: ['jjibunny', 'c_jji_def', 'c_jji_all', 'j_blade_arms', 'j_crest_bird', 'j_cross_horn'],
@@ -82,7 +94,7 @@
     const seed = (o.born || 0) + ':' + (o.name || '');
     if (o.stage === 'egg') return 'egg';
     if (o.stage === 'baby') return pickStable(POOLS.baby, seed);
-    if (o.stage === 'rookie') return pickStable(POOLS.rookie[o.form === 'dandanmong' ? 'def' : 'atk'], seed);
+    if (o.stage === 'rookie') return pickStable(POOLS.rookie[rookieSide(o.form)], seed);
     const f = FORMS[o.form] || {};
     const pool = POOLS.adult[f.type || 'muk'];
     return pool.includes(f.sprite) ? f.sprite : pickStable(pool, seed);
@@ -93,11 +105,11 @@
   const RULES = {
     base: { hpMin: 50, hpMax: 70, sum: 30, min: 5 },   // 알 받을 때 기본 능력치 (체력 범위, 공격+방어+속도 합, 각 최솟값)
     // ---- 시간 기준 성장 (초) ----
-    // 알 1시간 → 유체 12시간 → 아성체 24시간 → 성체. 건강도 80% 이상 1배, 50% 이상 0.5배, 그 밑은 멈춤
-    grow: { egg: 3600, baby: 12 * 3600, rookie: 24 * 3600 },
+    // 알 10분 → 유체 12시간 → 아성체 24시간 → 성체. 건강도 80% 이상 1배, 50% 이상 0.5배, 그 밑은 멈춤
+    grow: { egg: 600, baby: 12 * 3600, rookie: 24 * 3600 },
     healthFull: 80, healthHalf: 50,
-    warmMul: 3, warmHold: 120,    // 알 품기: 누르고 있는 동안 3배 (한 번 누르면 최대 2분, 계속 누르면 연장)
-    energyEvery: 60, maxEnergy: 100,   // 에너지 1분에 1 회복, 최대 100
+    warmMul: 10, warmHold: 120,   // 알 품기: 누르고 있는 동안 10배(10분 → 1분) (한 번 누르면 최대 2분, 계속 누르면 연장)
+    energyEvery: 180, maxEnergy: 100,  // 에너지 3분에 1 회복, 최대 100 (유체~성체 36시간 동안 훈련 최대 약 41번)
     hungerEvery: 432, moodEvery: 576, poopEvery: 3 * 3600,   // 배부름 12시간, 기분 16시간에 100→0, 똥 3시간마다 1개
     fastMul: 60,                  // 빠른 성장(테스트): 시간이 60배로 흐름
     maxOffline: 60 * 24 * 3600,   // 60일 넘게 비운 시간은 계산 안 함
@@ -106,7 +118,7 @@
     arenaMax: 10, battleCost: 1, arenaEnergyEvery: 600,
     maxEntries: 2,                // 한 계정당 결투장에 올릴 수 있는 몽글이 수
     pickCount: 3,                 // 결투장에서 무작위로 보여주는 상대 수         // 결투장 몽글이 배틀 에너지: 10초마다 +1 (최대 100)
-    // 성향 점수: 밥 → 묵, 훈련 → 찌, 놀기 → 빠
+    // 타입 점수: 밥 → 묵, 훈련 → 찌, 놀기 → 빠
     carePoints: { feed: 2, train: 1, play: 3 }
   };
 
@@ -155,11 +167,10 @@
     TYPE_ORDER.forEach(t => { out[t] = total ? Math.round(100 * (care[t] || 0) / total) : 0; });
     return out;
   }
+  // 성향: 공격·방어·속도 훈련 중 가장 많이 한 쪽 (같으면 공격 > 방어 > 속도)
   function decideStyle(pet) {
-    const a = pet.atk, d = pet.def;
-    if (a >= d * 1.3 && a - d >= 3) return 'atk';
-    if (d >= a * 1.3 && d - a >= 3) return 'def';
-    return 'all';
+    const a = pet.atk || 0, d = pet.def || 0, s = pet.spd || 0;
+    return a >= d && a >= s ? 'atk' : d >= s ? 'def' : 'spd';
   }
   function adultForm(type, style) { return `${type}_${style}`; }
 
@@ -169,6 +180,7 @@
     if (!pet.care) pet.care = { muk: 0, jji: 0, ppa: 0 };
     if (typeof pet.hp !== 'number') pet.hp = 0;
     // 꾀죄죄몽은 없어짐: 예전 꾀죄죄몽은 같은 타입의 보통 형태로
+    if (pet.stage === 'adult' && /_all$/.test(pet.form)) pet.form = pet.form.replace(/_all$/, '_spd');   // 만능형 → 속도형
     if (pet.stage === 'adult' && /^scruffy/.test(pet.form)) {
       pet.type = pet.form.split('_')[1] || LEGACY.scruffy; pet.style = decideStyle(pet);
       pet.form = adultForm(pet.type, pet.style); if (pet.look === 'scruffy') delete pet.look;
@@ -196,10 +208,11 @@
   // 결투장 등록 정보 변환 (이전 버전 등록분에 타입이 없을 때)
   function migrateEntry(e) {
     if (!e) return e;
-    if (/^scruffy_/.test(e.form)) { e.form = e.form.split('_')[1] + '_all'; if (e.look === 'scruffy') delete e.look; }   // 꾀죄죄몽 → 만능형
+    if (/_all$/.test(e.form)) e.form = e.form.replace(/_all$/, '_spd');   // 만능형 → 속도형
+    if (/^scruffy_/.test(e.form)) { e.form = e.form.split('_')[1] + '_spd'; if (e.look === 'scruffy') delete e.look; }   // 꾀죄죄몽 → 속도형
     if (!(FORMS[e.form] && FORMS[e.form].type)) {
       const t = e.type || LEGACY[e.form] || 'muk';
-      e.form = `${t}_all`;
+      e.form = `${t}_spd`;
     }
     e.type = FORMS[e.form].type; e.style = FORMS[e.form].style;
     if (!e.look) e.look = legacyLook(Object.assign({ stage: 'adult' }, e));
@@ -243,7 +256,7 @@
     const mul = pet.fast ? RULES.fastMul : 1, stepMs = 60000 / mul, evos = [];
     while (t < end) {
       const dtMs = Math.min(stepMs, end - t), sim = dtMs / 1000 * mul;
-      // 성장: 이 구간 시작 때의 건강도로 (알은 품는 구간만 3배)
+      // 성장: 이 구간 시작 때의 건강도로 (알은 품는 구간만 10배)
       if (pet.stage === 'egg') {
         const warmMs = clamp((pet.warmUntil || 0) - t, 0, dtMs);
         pet.grow += sim + (RULES.warmMul - 1) * (warmMs / 1000 * mul);
@@ -272,7 +285,7 @@
   function warm(pet, on, nowMs) {
     if (pet.stage !== 'egg') return { ok: false, msg: '이미 부화했어요.' };
     pet.warmUntil = on ? nowMs + RULES.warmHold * 1000 : Math.min(pet.warmUntil || 0, nowMs);
-    return { ok: true, msg: on ? '따뜻하게 품는 중… 시간이 3배로 흘러요.' : '' };
+    return { ok: true, msg: on ? '따뜻하게 품는 중… 시간이 10배로 흘러요.' : '' };
   }
 
   // ---------- 성장 ----------
@@ -281,13 +294,13 @@
     const from = pet.look || pet.form; let to = null, look = null;
     if (pet.stage === 'egg') { to = 'mongsil'; pet.stage = 'baby'; look = pickRandom(POOLS.baby, rnd); if (!pet.base) pet.base = rollBase(rnd); }   // 부화하면 기본 능력치가 생김
     else if (pet.stage === 'baby') {
-      const side = pet.atk >= pet.def ? 'atk' : 'def';
-      to = side === 'atk' ? 'ppulmong' : 'dandanmong'; pet.stage = 'rookie'; look = pickRandom(POOLS.rookie[side], rnd);
+      const side = decideStyle(pet);          // 공격·방어·속도 훈련 중 가장 많이 한 쪽
+      to = ROOKIE_FORM[side]; pet.stage = 'rookie'; look = pickRandom(POOLS.rookie[side], rnd);
     }
     else if (pet.stage === 'rookie') {
       pet.stage = 'adult';
-      pet.type = topType(pet.care);       // 묵·찌·빠는 성향으로 결정
-      pet.style = decideStyle(pet);       // 공격형·방어형·만능형은 능력치로 결정
+      pet.type = topType(pet.care);       // 묵·찌·빠는 타입 점수로 결정
+      pet.style = decideStyle(pet);       // 공격형·방어형·속도형은 훈련한 양으로 결정
       to = adultForm(pet.type, pet.style);
       look = pickRandom(POOLS.adult[pet.type], rnd);   // 모습은 타입 안에서 무작위
     }
@@ -299,7 +312,7 @@
     // 기본 능력치(알 받을 때 무작위) + 단계 보너스(유체·아성체·성체, 예전 Lv.10·30·50 성장만큼) + 훈련, 그 뒤 형태 배율
     const f = FORMS[p.form] || {}, L = p.base ? stageLv(p) - 1 : stageLv(p), b = p.base || OLD_BASE;
     return {
-      hp:  Math.round((b.hp  + L * 8   + (p.hp || 0) * 6) * (f.hp || 1)),
+      hp:  Math.round((b.hp  + L * 8   + (p.hp || 0) * 3) * (f.hp || 1)),
       atk: Math.round((b.atk + L * 1.2 + p.atk * 1.6) * (f.atk || 1)),
       def: Math.round((b.def + L * 0.8 + p.def * 1.4) * (f.def || 1)),
       spd: Math.round((b.spd + L * 0.8 + p.spd * 1.6) * (f.spd || 1))
@@ -485,22 +498,56 @@
   function elementMult(/* a, d */) { return 1; }
   function affinity(att, dfn) { return typeMult(att.type, dfn.type) * elementMult(att.element, dfn.element); }
 
+  // 배틀 (시험 규칙 C + 기술)
+  // - 속도: 행동 게이지가 속도만큼 차고 100마다 행동 → 속도가 2배면 2번 공격. 회피·치명타는 속도 비율로
+  // - 공격: 피해 = 공격² ÷ (공격 + 방어)
+  // - 타입 기술(TYPES.skill): 공격할 때 20%, 피해 1.3배
+  // - 성향 패시브: 맞을 때마다 공격력/방어력 +1%, 또는 회피율 +1%p (배틀 안에서만)
+  // - 성향 액티브(해당 능력치 500 이상, 10%): 쌔게때리기(맞히면 상대 다음 행동 1번 기절) / 가시세우기(맞을 때 피해를 받지 않고 공격한 쪽에 그대로) / 두번때리기(곧바로 한 번 더 공격)
+  // 이벤트: {who, miss?, skill?, style?(성향 액티브 이름), dmg, crit, eff, reflect?, stun?(상대 기절), stunned?(기절해서 못 움직임), mh, oh}
   function simulate(me, op, rnd) {
     const r = rnd || Math.random;
-    const ev = []; let mh = me.hp, oh = op.hp;
-    let turn = me.spd === op.spd ? (r() < .5 ? 'me' : 'op') : (me.spd > op.spd ? 'me' : 'op');
-    for (let i = 0; i < 60 && mh > 0 && oh > 0; i++) {
-      const A = turn === 'me' ? me : op, D = turn === 'me' ? op : me;
-      const dodge = clamp((D.spd - A.spd) * 0.8, 3, 25) / 100, crit = clamp(10 + (A.spd - D.spd) * 0.3, 5, 25) / 100;
-      if (r() < dodge) ev.push({ who: turn, miss: true });
-      else {
-        const c = r() < crit, aff = affinity(A, D);
-        const raw = A.atk * (0.9 + r() * 0.2) * (c ? 1.6 : 1) - D.def * 0.6;
-        const dmg = Math.max(2, Math.round(raw * aff));
-        if (turn === 'me') oh = Math.max(0, oh - dmg); else mh = Math.max(0, mh - dmg);
-        ev.push({ who: turn, dmg, crit: c, eff: aff > 1 ? 'up' : aff < 1 ? 'down' : null, mh, oh });
+    const ev = []; let mh = me.hp, oh = op.hp, gm = 0, go = 0, n = 0;
+    const st = { me: { atk: 1, def: 1, dodge: 0, stun: 0 }, op: { atk: 1, def: 1, dodge: 0, stun: 0 } };   // 배틀 중에 쌓이는 값
+    const S = x => STYLES[x.style || (FORMS[x.form] || {}).style] || null;
+    const can = (x, key) => { const s = S(x); return s && s.active.name === STYLES[key].active.name && x[s.active.need] >= SKILL_NEED && r() < s.active.p; };
+    const meFirst = me.spd === op.spd ? r() < .5 : me.spd > op.spd;
+    const hp = w => w === 'me' ? mh : oh;
+    const hurt = (w, d) => { if (w === 'me') mh = Math.max(0, mh - d); else oh = Math.max(0, oh - d); };
+    const hit = (turn, extra) => {
+      const foe = turn === 'me' ? 'op' : 'me', A = turn === 'me' ? me : op, D = turn === 'me' ? op : me;
+      const sa = st[turn], sd = st[foe], atk = A.atk * sa.atk, def = D.def * sd.def, sr = A.spd / (A.spd + D.spd || 1);
+      const dodge = clamp(0.3 * (1 - sr) - 0.05, 0.03, 0.25) + sd.dodge, crit = clamp(0.3 * sr - 0.03, 0.05, 0.25);
+      const sk = TYPES[A.type] && TYPES[A.type].skill, skill = sk && r() < sk.p ? sk.name : null;
+      const base = { who: turn, skill }; if (extra) base.style = extra;
+      if (r() < dodge) return ev.push(Object.assign(base, { miss: true, mh, oh }));
+      const c = r() < crit, aff = affinity(A, D);
+      const raw = atk * atk / (atk + def || 1) * (0.9 + r() * 0.2) * (c ? 1.6 : 1) * (skill ? sk.mult : 1);
+      const dmg = Math.max(2, Math.round(raw * aff));
+      const e = Object.assign(base, { dmg, crit: c, eff: aff > 1 ? 'up' : aff < 1 ? 'down' : null });
+      if (can(D, 'def')) {                         // 가시세우기: 피해를 그대로 되돌림
+        e.reflect = STYLES.def.active.name; hurt(turn, dmg);
+      } else {
+        hurt(foe, dmg);
+        // 패시브: 맞을 때마다 쌓임
+        const ps = S(D); if (ps) { const k = ps.passive.stat; sd[k] += PASSIVE_STEP; }
+        if (hp(foe) > 0 && can(A, 'atk')) { e.stun = STYLES.atk.active.name; sd.stun = 1; }
       }
-      turn = turn === 'me' ? 'op' : 'me';
+      ev.push(Object.assign(e, { mh, oh }));
+    };
+    const act = t => {
+      if (st[t].stun) { st[t].stun = 0; ev.push({ who: t, stunned: true, mh, oh }); return; }
+      hit(t);
+      const A = t === 'me' ? me : op;
+      if (mh > 0 && oh > 0 && can(A, 'spd')) hit(t, STYLES.spd.active.name);   // 두번때리기
+    };
+    while (n < 80 && mh > 0 && oh > 0) {
+      gm += Math.max(1, me.spd); go += Math.max(1, op.spd);
+      const acts = [];
+      const push = () => { if (gm >= 100) { acts.push('me'); gm -= 100; } };
+      const pushO = () => { if (go >= 100) { acts.push('op'); go -= 100; } };
+      if (gm > go || (gm === go && meFirst)) { push(); pushO(); } else { pushO(); push(); }
+      for (const t of acts) { if (mh <= 0 || oh <= 0 || n >= 80) break; act(t); n++; }
     }
     const win = oh <= 0 ? true : mh <= 0 ? false : (mh / me.hp >= oh / op.hp);
     return { ev, win };
@@ -564,11 +611,11 @@
   // 배틀에 쓰는 한쪽 정보 (몬스터 또는 결투장 등록 정보에서)
   function side(src) {
     const f = FORMS[src.form] || {};
-    return { name: src.name, form: src.form, look: src.look, level: src.level, type: src.type || f.type || null,
+    return { name: src.name, form: src.form, look: src.look, level: src.level, type: src.type || f.type || null, style: f.style || src.style || null,
       hp: src.hp, atk: src.atk, def: src.def, spd: src.spd };
   }
 
-  return { FORMS, LOOKS, POOLS, legacyLook, TYPES, TYPE_ORDER, STYLES, STAGE_KO, STAT_KO, RULES, ADV, DIS, LEGACY,
+  return { FORMS, LOOKS, POOLS, ROOKIE_FORM, rookieSide, legacyLook, TYPES, TYPE_ORDER, STYLES, STAGE_KO, STAT_KO, RULES, ADV, DIS, LEGACY,
     arenaEnergy, arenaNextIn, spendArenaEnergy, rankEntries, entryFromPet, publicEntry,
     clamp, newPet, advance, health, growRate, evoLeft, warm, migrate, migrateEntry, topType, tendency, decideStyle,
     checkEvo, bstats, rollBase, applyAction,

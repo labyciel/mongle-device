@@ -25,6 +25,8 @@ r_horn:["................", "................", "................", "....#......
 r_wing2:["................", "................", "................", "................", "................", "....########....", "...#oooooooo#...", "#.#oooooooooo#.#", "###o#.oooo#.o###", "#o#o##oooo##o#o#", ".##oooo##oooo##.", ".#oooooooooooo#.", ".#oooooooooooo#.", "..#oooooooooo#..", "...##o#..#o##...", "...###....###..."],
 r_shell2:["................", "................", ".....######.....", "...##o#oo#o##...", "..#o#oo##oo#o#..", ".##############.", "...#oooooooo#...", "..#oooooooooo#..", "..#o#.oooo#.o#..", "..#o##oooo##o#..", "..#oooo##oooo#..", ".#oooooooooooo#.", ".#oooooooooooo#.", "..#oooooooooo#..", "...##o#..#o##...", "...###....###..."],
 r_guard:["................", "................", "................", ".....#....#.....", ".....##..##.....", "....########....", "...#oooooooo#...", "..#oooooooooo#..", "..#o#.oooo#.o#..", "..#o##oooo##o#..", "..#oooo##oooo#..", ".#oooo####oooo#.", ".#ooo#oooo#ooo#.", "..#oo#oooo#oo#..", "...##o####o##...", "...###....###..."],
+r_bolt:[".........##.....", "........##......", ".......####.....", ".........##.....", "........##......", "....########....", "...#oooooooo#...", "..#oooooooooo#..", "..#o#.oooo#.o#..", "..#o##oooo##o#..", "..#oooo##oooo#..", ".#oooooooooooo#.", ".#oooooooooooo#.", "..#oooooooooo#..", "...##o#..#o##...", "...###....###..."],
+r_band:["................", "................", "................", "................", "................", "....########....", "...#oooooooo#.##", "..############..", "..#o#.oooo#.o#.#", "..#o##oooo##o#..", "..#oooo##oooo#..", ".#oooooooooooo#.", ".#oooooooooooo#.", "..#oooooooooo#..", "...##o#..#o##...", "...###....###..."],
 c_muk_atk:["................", ".###........###.", "#o#o#......#o#o#", "#ooo#.####.#ooo#", ".####oooooo####.", "..#oooooooooo#..", ".#oooooooooooo#.", ".#o##oooooo##o#.", ".#oo#.oooo#.oo#.", ".#oo##oooo##oo#.", ".#ooooo##ooooo#.", ".#oooooooooooo#.", "..#oooooooooo#..", "..#oooooooooo#..", "..##o##..##o##..", "..####....####.."],
 c_muk_def:["................", "................", ".....######.....", "...##o#oo#o##...", "..#o#oo##oo#o#..", ".#oo#oooooo#oo#.", "################", "#oooooooooooooo#", "#ooo###oo###ooo#", "#oooooooooooooo#", "#oooooo##oooooo#", ".#oooooooooooo#.", ".#oooooooooooo#.", "..#oooooooooo#..", "..##o##..##o##..", "..####....####.."],
 c_muk_all:["................", "................", "##............##", "#o#..######..#o#", ".#o##oooooo##o#.", "..#oooooooooo#..", ".#oooooooooooo#.", ".#oo#.oooo#.oo#.", ".#oo##oooo##oo#.", ".#oooo#oo#oooo#.", ".#ooooo##ooooo#.", ".#oooooooooooo#.", "..#oooooooooo#..", "...#oooooooo#...", "...##o#..#o##...", "...###....###..."],
@@ -46,7 +48,7 @@ function kindText(o) {
   const stage = o.stage || 'adult';
   if (stage === 'egg') return '알';
   if (stage === 'baby') return '유체';
-  if (stage === 'rookie') return `아성체 · ${o.form === 'dandanmong' ? '방어' : '공격'} 쪽`;
+  if (stage === 'rookie') return `아성체 · ${{ atk: '공격', def: '방어', spd: '속도' }[C.rookieSide(o.form)]} 쪽`;
   return `${o.type ? C.TYPES[o.type].name + ' 타입' : '성체'}${o.style ? ' · ' + C.STYLES[o.style].name : ''}`;
 }
 // 공격 손 (위에서부터 묵·찌·빠). '#' 테두리, 'o' 밝은 속. 손 모양 점만 그리고 주변은 몬스터가 그대로 보임
@@ -192,7 +194,7 @@ function drawSprite(canvas, form) {
 // 모습별 입 위치 (16×16 그림 안의 x, y, 너비, 높이). 새 모습을 추가하면 여기에도 넣어야 입이 벌어져요
 const MOUTH = {
   b_drop:{x:7,y:11,w:2,h:1}, b_fluff:{x:6,y:10,w:4,h:2}, b_slug:{x:3,y:11,w:2,h:1},
-  r_horn:{x:7,y:10,w:2,h:1}, r_wing2:{x:7,y:10,w:2,h:1}, r_shell2:{x:7,y:10,w:2,h:1}, r_guard:{x:7,y:10,w:2,h:1},
+  r_horn:{x:7,y:10,w:2,h:1}, r_wing2:{x:7,y:10,w:2,h:1}, r_shell2:{x:7,y:10,w:2,h:1}, r_guard:{x:7,y:10,w:2,h:1}, r_bolt:{x:7,y:10,w:2,h:1}, r_band:{x:7,y:10,w:2,h:1},
   mukfist:{x:6,y:7,w:4,h:1}, ironshell:{x:4,y:10,w:8,h:1}, mukpebble:{x:6,y:9,w:4,h:2},
   c_muk_atk:{x:7,y:10,w:2,h:1}, c_muk_def:{x:7,y:10,w:2,h:1}, c_muk_all:{x:6,y:9,w:4,h:2},
   jjibunny:{x:7,y:8,w:2,h:1}, c_jji_def:{x:7,y:10,w:2,h:1}, c_jji_all:{x:7,y:10,w:2,h:1},
@@ -517,11 +519,13 @@ function render() {
   ['lHealth', 'bHealth', 'nHealth'].forEach(id => $(id).hidden = !showH);
   if (showH) meter('mHealth', 'nHealth', hv, 100, hv < C.RULES.healthHalf ? 'bad' : hv < C.RULES.healthFull ? 'warn' : '');
   meter('mHun', 'nHun', v.hunger, 100); meter('mMood', 'nMood', v.mood, 100); meter('mEn', 'nEn', v.energy, C.RULES.maxEnergy);
+  // 알일 때는 배부름·기분·에너지가 필요 없어서 숨김
+  ['Hun', 'Mood', 'En'].forEach(k => ['l', 'b', 'n'].forEach(p => $(p + k).hidden = v.stage === 'egg'));
   const left = C.evoLeft(v, nowMs), rate = C.growRate(v, nowMs);
   const dur = sec => { sec = Math.ceil(sec); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s2 = sec % 60; return h ? `${h}시간 ${m}분` : m ? `${m}분 ${s2}초` : `${s2}초`; };
   const nextName = { egg: '부화', baby: '아성체 진화', rookie: '성체 진화' }[v.stage];
   const onArena = isOnArena(v);
-  $('sNext').textContent = v.stage === 'egg' ? `부화까지 약 ${dur(left)}.` + (rate > 1 ? ' 품는 중이라 3배로 흘러요!' : ' 품기를 누르고 있으면 3배로 빨라져요.')
+  $('sNext').textContent = v.stage === 'egg' ? `부화까지 약 ${dur(left)}.` + (rate > 1 ? ' 품는 중이라 10배로 흘러요!' : ' 품기를 누르고 있으면 10배로 빨라져요.')
     : nextName ? (left === null ? `건강도가 ${C.RULES.healthHalf}% 밑이라 성장이 멈췄어요. 밥·놀기·청소로 돌봐 주세요.`
       : `${nextName}까지 약 ${dur(left)}` + (rate < 1 ? ` (건강도가 ${C.RULES.healthFull}% 밑이라 0.5배속)` : '') + '.')
     : onArena ? '결투장에 올라갔어요. 이제 새 알을 받아 다음 몽글이를 키워 보세요.'
@@ -553,7 +557,7 @@ function render() {
   $('lcdR').textContent = egg ? '부화 대기' : `${v.stage === 'adult' ? kindText(v) : C.STAGE_KO[v.stage]}${v.poops ? ' · 똥' + v.poops : ''}`;
   renderArena(v);
 }
-// 기기 화면 오른쪽 위 묵·찌·빠: 가장 높은 성향만 검게 (성체는 정해진 타입). 알·훈련·배틀 중엔 숨김
+// 기기 화면 오른쪽 위 묵·찌·빠: 가장 높은 타입 점수만 검게 (성체는 정해진 타입). 알·훈련·배틀 중엔 숨김
 function renderTendency(v) {
   const box = $('tend'), show = !!v && v.stage !== 'egg' && mode === 'idle';
   box.hidden = !show;
@@ -562,7 +566,7 @@ function renderTendency(v) {
   const top = v.stage === 'adult' ? v.type : total ? C.topType(v.care) : null;
   const pct = C.tendency(v.care);
   box.querySelectorAll('span').forEach(el => { el.classList.toggle('top', el.dataset.t === top); });
-  box.setAttribute('aria-label', top ? `성향: ${C.TYPES[top].name}` + (v.stage === 'adult' ? ' 타입' : ` (묵 ${pct.muk}%, 찌 ${pct.jji}%, 빠 ${pct.ppa}%)`) : '성향: 아직 없음');
+  box.setAttribute('aria-label', top ? `타입 점수: ${C.TYPES[top].name}` + (v.stage === 'adult' ? ' 타입' : ` (묵 ${pct.muk}%, 찌 ${pct.jji}%, 빠 ${pct.ppa}%)`) : '타입 점수: 아직 없음');
 }
 // 지금 키우는 몽글이가 결투장에 올라가 있는지 (알을 받은 시각으로 구분)
 const entryOf = v => v ? mine.find(e => e.born === v.born) || null : null;
@@ -683,7 +687,7 @@ function openTrainPop() {
 let warmT = null;
 function warmOn() {
   if (!pet || pet.stage !== 'egg' || warming || $('bMain').disabled) return;
-  warming = true; say('따뜻하게 품는 중… 3배!');
+  warming = true; say('따뜻하게 품는 중… 10배!');
   const send = () => api('/warm', { on: true }).then(apply).catch(e => { say(e.message); warmOff(); });
   send(); warmT = setInterval(send, 60000);
 }
@@ -830,14 +834,25 @@ function startBattle(id) {
 function logLine(txt, cls) { const li = document.createElement('li'); li.textContent = txt; li.className = cls || ''; const L = $('battleLog'); L.appendChild(li); L.scrollTop = L.scrollHeight; }
 function describe(e) {
   const A = e.who === 'me' ? battle.me.name : battle.op.name, D = e.who === 'me' ? battle.op.name : battle.me.name;
-  return e.miss ? [`${A}의 공격! ${D}이(가) 피했다.`, 'miss'] : [`${A}의 공격${e.crit ? ' (치명타!)' : ''} → ${D}에게 ${e.dmg} 피해${e.eff === 'up' ? ' · 효과가 굉장해!' : e.eff === 'down' ? ' · 효과가 별로…' : ''}`, 'hit'];
+  if (e.stunned) return [`${A}은(는) 기절해서 움직이지 못했다!`, 'miss'];
+  // 기술 이름: 두번때리기(성향) → 타입 기술 순서로 붙임
+  const names = [e.style, e.skill].filter(Boolean).map(x => x + '!').join(' ');
+  const act = names ? `${A}의 ${names}` : `${A}의 공격`;
+  if (e.miss) return [`${act}${names ? '' : '!'} ${D}이(가) 피했다.`, 'miss'];
+  const eff = e.eff === 'up' ? ' · 효과가 굉장해!' : e.eff === 'down' ? ' · 효과가 별로…' : '';
+  if (e.reflect) return [`${act} → ${D}의 ${e.reflect}! 공격을 되돌려 ${A}에게 ${e.dmg} 피해`, 'hit'];
+  return [`${act}${e.crit ? ' (치명타!)' : ''} → ${D}에게 ${e.dmg} 피해${eff}${e.stun ? ` · ${e.stun}! ${D} 기절` : ''}`, 'hit'];
 }
 function step() {
   const b = battle; if (!b) return;
   if (b.i >= b.events.length) return finishBattle();
   const e = b.events[b.i++];
   const A = e.who === 'me' ? b.me : b.op;
-  b.fx = { at: performance.now(), type: A.type, big: styleOf(A.form) === 'atk', target: e.who === 'me' ? 'op' : 'me', miss: !!e.miss, strong: e.eff === 'up' };
+  if (e.stunned) {                                   // 기절: 손 없이 로그만
+    b.fx = null; const [t, c] = describe(e); logLine(t, c);
+    battleTimer = setTimeout(step, HIT.next); return;
+  }
+  b.fx = { at: performance.now(), type: A.type, big: styleOf(A.form) === 'atk', target: e.who === 'me' ? 'op' : 'me', miss: !!e.miss, strong: e.eff === 'up' || !!e.skill || !!e.style };
   // 손이 사라지는 순간 체력이 줄고 로그가 나옴
   b.pending = e;
   battleTimer = setTimeout(() => {

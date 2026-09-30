@@ -74,11 +74,11 @@
       <canvas id="lcd" width="400" height="200" aria-label="몬스터 화면"></canvas>
       <!-- 밥·놀기·청소 같은 돌봄 반응 말풍선: 화면 가운데 위 -->
       <div class="say" id="say" role="status" aria-live="polite"></div>
-      <!-- 성향 표시: 가장 높은 성향 글자만 검게 (성체는 정해진 타입) -->
+      <!-- 타입 점수 표시: 가장 높은 글자만 검게 (성체는 정해진 타입) -->
       <!-- 체력 훈련 결과: 화면 가운데 두 줄, 2초 -->
       <div class="ask win" id="ask" hidden>이기는 손!</div>
       <div class="result" id="result" role="status" aria-live="polite" hidden><span id="resA"></span><b id="resB"></b></div>
-      <div class="tend" id="tend" aria-label="성향"><span data-t="muk">묵</span><span data-t="jji">찌</span><span data-t="ppa">빠</span></div>
+      <div class="tend" id="tend" aria-label="타입 점수"><span data-t="muk">묵</span><span data-t="jji">찌</span><span data-t="ppa">빠</span></div>
       <div class="lcdline"><span id="lcdL">LOADING</span><span id="lcdR"></span></div>
     </div>
     <div class="pad" id="pad" hidden>
@@ -145,9 +145,9 @@
         <div class="meters">
           <span>성장</span><div class="bar"><b class="xp" id="mGrow"></b></div><span class="num" id="nGrow"></span>
           <span id="lHealth">건강도</span><div class="bar" id="bHealth"><b id="mHealth"></b></div><span class="num" id="nHealth"></span>
-          <span>배부름</span><div class="bar"><b id="mHun"></b></div><span class="num" id="nHun"></span>
-          <span>기분</span><div class="bar"><b id="mMood"></b></div><span class="num" id="nMood"></span>
-          <span>에너지</span><div class="bar"><b id="mEn"></b></div><span class="num" id="nEn"></span>
+          <span id="lHun">배부름</span><div class="bar" id="bHun"><b id="mHun"></b></div><span class="num" id="nHun"></span>
+          <span id="lMood">기분</span><div class="bar" id="bMood"><b id="mMood"></b></div><span class="num" id="nMood"></span>
+          <span id="lEn">에너지</span><div class="bar" id="bEn"><b id="mEn"></b></div><span class="num" id="nEn"></span>
         </div>
         <p class="hint" id="sNext"></p>
       </div>
@@ -164,7 +164,7 @@
 
       <div class="card" id="fastCard">
         <div class="row"><h2>빠른 성장 (테스트)</h2><button class="btn" id="bFast" aria-pressed="false">켜기</button></div>
-        <p class="hint">켜면 시간이 60배 빨리 흘러요(성체까지 약 37분). 배고픔·기분도 60배로 떨어져요. 한 번이라도 켠 몬스터는 결투장에 <b>테스트</b> 표시가 붙어요.</p>
+        <p class="hint">켜면 시간이 60배 빨리 흘러요(성체까지 약 36분). 배고픔·기분도 60배로 떨어져요. 한 번이라도 켠 몬스터는 결투장에 <b>테스트</b> 표시가 붙어요.</p>
       </div>
 
       <!-- 새 알 받기: 성체일 때만 보임 -->

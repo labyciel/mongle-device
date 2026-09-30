@@ -2,8 +2,8 @@
 // 실제 배포에는 쓰지 않습니다. 데이터는 이 기기(localStorage)에만 저장됩니다.
 (function () {
   const C = window.Core;
-  // 빠른 성장(테스트 모드): 테스트 페이지 주소 끝에 #fast 를 붙여 열 때만 보임
-  const ALLOW_FAST = location.hash === '#fast';
+  // 빠른 성장(테스트 모드): 관리자 계정(admin / 1133)으로 로그인했을 때만 (server.js와 같음)
+  const ADMIN_NICK = 'admin', ADMIN_PASS = '1133';
   const K = 'mongle-test-server-v1';
   let st = null;
   try { st = JSON.parse(localStorage.getItem(K)); } catch (e) {}
@@ -28,7 +28,13 @@
   }
   const token = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
   const findNick = nick => Object.values(st.users).find(u => u.nick.toLowerCase() === nick.toLowerCase());
-  function loadPet(uid) { const p = st.pets[uid]; if (!p) return null; const pet = JSON.parse(JSON.stringify(p)); if (!ALLOW_FAST) pet.fast = false; C.advance(pet, Date.now()); return pet; }
+  const adminReady = (async () => {
+    let u = Object.values(st.users).find(u => u.nick === ADMIN_NICK);
+    if (!u) { const id = st.nextId++; u = st.users[id] = { id, nick: ADMIN_NICK }; }
+    u.pass = await hash(ADMIN_PASS); save();
+  })();
+  const fastOK = uid => !!st.users[uid] && st.users[uid].nick === ADMIN_NICK;
+  function loadPet(uid) { const p = st.pets[uid]; if (!p) return null; const pet = JSON.parse(JSON.stringify(p)); if (!fastOK(uid)) pet.fast = false; C.advance(pet, Date.now()); return pet; }
   function savePet(uid, pet) { st.pets[uid] = pet; save(); }
   // server.js의 rankedArena / myEntries와 같은 동작
   function rankedArena(viewer) {
@@ -44,17 +50,18 @@
     const list = rankedArena(uid);
     return list.filter(e => e.uid === uid).sort((a, b) => a.registeredAt - b.registeredAt).map(e => Object.assign({}, e, { total: list.length }));
   }
-  function payload(uid, pet, extra) { return Object.assign({ now: Date.now(), pet, allowFast: ALLOW_FAST, mine: myEntries(uid), maxEntries: C.RULES.maxEntries }, extra || {}); }
+  function payload(uid, pet, extra) { return Object.assign({ now: Date.now(), pet, allowFast: fastOK(uid), mine: myEntries(uid), maxEntries: C.RULES.maxEntries }, extra || {}); }
   const myRows = uid => Object.entries(st.entries).filter(([, r]) => r.user === uid).map(([id, r]) => Object.assign({ id: Number(id) }, r)).sort((a, b) => a.created - b.created);
 
   async function handle(path, method, body, authz) {
     // 계정
     if (path === '/signup' || path === '/login') {
+      await adminReady;
       const nick = String(body.nick || '').trim(), pass = String(body.pass || '');
       if (path === '/signup') {
         if (!/^[\p{L}\p{N}_]{2,12}$/u.test(nick)) return fail(400, '닉네임은 2~12자의 한글, 영문, 숫자, _ 만 쓸 수 있어요.');
         if (pass.length < 4 || pass.length > 64) return fail(400, '비밀번호는 4자 이상이어야 해요.');
-        if (findNick(nick)) return fail(409, '이미 있는 닉네임이에요.');
+        if (findNick(nick) || nick.toLowerCase() === ADMIN_NICK) return fail(409, '이미 있는 닉네임이에요.');
         const id = st.nextId++; st.users[id] = { id, nick, pass: await hash(pass) };
         const t = token(); st.sessions[t] = id; save(); return res(200, { token: t, nick });
       }
@@ -77,7 +84,7 @@
     if (path === '/pet') {
       const name = String(body.name || '').trim().slice(0, 10) || '몽이';
       const pet = C.newPet(name, Date.now()); savePet(uid, pet); delete trains[uid]; save();   // 결투장 몽글이는 그대로
-      return res(200, payload(uid, pet, { msg: '알을 받았어요. 1시간 뒤 부화해요. 품기를 누르고 있으면 3배 빨라져요.' }));
+      return res(200, payload(uid, pet, { msg: '알을 받았어요. 10분 뒤 부화해요. 품기를 누르고 있으면 10배 빨라져요.' }));
     }
     const pet = loadPet(uid);
     if (!pet) return fail(404, '먼저 알을 받아 주세요.');
@@ -87,7 +94,7 @@
     }
     if (path === '/seen') { pet.evoUnseen = null; savePet(uid, pet); return res(200, payload(uid, pet, {})); }
     if (path === '/action') {
-      if (body.type === 'fast' && !ALLOW_FAST) return fail(403, '이 서버에서는 빠른 성장을 쓸 수 없어요.');
+      if (body.type === 'fast' && !fastOK(uid)) return fail(403, '빠른 성장은 관리자만 쓸 수 있어요.');
       if (trains[uid]) return fail(409, '훈련 중이에요.');
       const r = C.applyAction(pet, String(body.type || '')); savePet(uid, pet);
       return res(200, payload(uid, pet, { ok: r.ok, msg: r.msg, info: r.info, refuse: !!r.refuse }));
