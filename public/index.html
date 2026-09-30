@@ -24,12 +24,28 @@
   .foe .pick[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:transparent}
   .foe .en{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:11px;color:var(--muted)}
   .foe .en .bar{flex:1;height:6px}
-  .btns.two{grid-template-columns:repeat(2,1fr)}
   .device{position:relative}
   .bezel{position:relative}
   .say{position:absolute;left:50%;top:18px;transform:translate(-50%,-6px);max-width:calc(100% - 40px);width:max-content;padding:7px 14px;border-radius:12px;background:#FFF8EC;color:#2B2F33;font-size:14px;font-weight:700;line-height:1.35;text-align:center;box-shadow:0 3px 0 rgba(0,0,0,.22);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:5}
   .say::after{content:"";position:absolute;left:50%;bottom:-6px;margin-left:-6px;border:6px solid transparent;border-bottom:0;border-top-color:#FFF8EC}
   .say.on{opacity:1;transform:translate(-50%,0)}
+  .result{position:absolute;left:50%;top:calc(12px + (100% - 24px - 26px) / 2);transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 22px;border-radius:14px;background:#FFF8EC;color:#2B2F33;box-shadow:0 4px 0 rgba(0,0,0,.25);animation:respop .18s ease-out;pointer-events:none;z-index:6;white-space:nowrap}
+  .result span{font-size:14px;font-weight:700}
+  .result b{font-family:var(--f-display);font-weight:400;font-size:26px;line-height:1.1}
+  @keyframes respop{from{transform:translate(-50%,-50%) scale(.85);opacity:0}to{transform:translate(-50%,-50%) scale(1);opacity:1}}
+  @media (prefers-reduced-motion: reduce){.result{animation:none}}
+  #bMain{touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+  .dpads{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .dpads .stop{padding:26px 0;font-size:28px}
+  .rpspad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .rpspad .stop{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 0 12px;font-size:22px;touch-action:manipulation}
+  .rpspad canvas{width:44px;height:44px;image-rendering:pixelated}
+  .ask{position:absolute;left:50%;top:18px;transform:translateX(-50%);padding:5px 14px;border-radius:10px;font-family:var(--f-display);font-size:20px;line-height:1.2;white-space:nowrap;pointer-events:none;box-shadow:0 3px 0 rgba(0,0,0,.22);z-index:5}
+  .ask.win{background:#FFF8EC;color:#2B2F33}
+  .ask.lose{background:#2B2F33;color:#FFD9A8;outline:2px solid #FFD9A8}
+  body.gaming{touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+  .dpads .stop{touch-action:manipulation;user-select:none}
+  .dpads .stop:disabled,.stop:disabled{opacity:.6;cursor:default}
   .tend{position:absolute;top:15px;right:17px;display:flex;gap:5px;font-size:12px;line-height:1;font-weight:800;pointer-events:none;z-index:4}
   .tend span{color:#7C876A}
   .tend span.top{color:#1E2418}
@@ -59,6 +75,9 @@
       <!-- 밥·놀기·청소 같은 돌봄 반응 말풍선: 화면 가운데 위 -->
       <div class="say" id="say" role="status" aria-live="polite"></div>
       <!-- 성향 표시: 가장 높은 성향 글자만 검게 (성체는 정해진 타입) -->
+      <!-- 체력 훈련 결과: 화면 가운데 두 줄, 2초 -->
+      <div class="ask win" id="ask" hidden>이기는 손!</div>
+      <div class="result" id="result" role="status" aria-live="polite" hidden><span id="resA"></span><b id="resB"></b></div>
       <div class="tend" id="tend" aria-label="성향"><span data-t="muk">묵</span><span data-t="jji">찌</span><span data-t="ppa">빠</span></div>
       <div class="lcdline"><span id="lcdL">LOADING</span><span id="lcdR"></span></div>
     </div>
@@ -74,9 +93,20 @@
       <button role="menuitem" data-train="atk">공격력</button>
       <button role="menuitem" data-train="def">방어력</button>
       <button role="menuitem" data-train="spd">속도</button>
-      <small>에너지 12<br>배부름 6</small>
+      <small>에너지 20<br>배부름 6</small>
     </div>
     <button class="stop" id="bStop" hidden>멈춰!</button>
+    <!-- 속도 훈련: 몽글이를 옆 줄로 옮기는 두 버튼 -->
+    <div class="dpads" id="dPads" hidden>
+      <button class="stop" id="bLeft" aria-label="왼쪽으로">◀</button>
+      <button class="stop" id="bRight" aria-label="오른쪽으로">▶</button>
+    </div>
+    <!-- 공격 훈련: 묵·찌·빠 -->
+    <div class="rpspad" id="rpsPad" hidden>
+      <button class="stop" data-h="muk"><canvas width="12" height="12"></canvas>묵</button>
+      <button class="stop" data-h="jji"><canvas width="12" height="12"></canvas>찌</button>
+      <button class="stop" data-h="ppa"><canvas width="12" height="12"></canvas>빠</button>
+    </div>
   </section>
 
   <section class="card" id="loginCard" hidden>
@@ -113,7 +143,8 @@
           <span class="pill stage" id="sStage">알</span>
         </div>
         <div class="meters">
-          <span>레벨 <b id="sLv">1</b></span><div class="bar"><b class="xp" id="mXp"></b></div><span class="num" id="nXp"></span>
+          <span>성장</span><div class="bar"><b class="xp" id="mGrow"></b></div><span class="num" id="nGrow"></span>
+          <span id="lHealth">건강도</span><div class="bar" id="bHealth"><b id="mHealth"></b></div><span class="num" id="nHealth"></span>
           <span>배부름</span><div class="bar"><b id="mHun"></b></div><span class="num" id="nHun"></span>
           <span>기분</span><div class="bar"><b id="mMood"></b></div><span class="num" id="nMood"></span>
           <span>에너지</span><div class="bar"><b id="mEn"></b></div><span class="num" id="nEn"></span>
@@ -121,7 +152,7 @@
         <p class="hint" id="sNext"></p>
       </div>
 
-      <div class="card">
+      <div class="card" id="statCard">
         <h2>능력치</h2>
         <div class="stats">
           <div><small>체력</small><strong id="vHp">-</strong></div>
@@ -133,7 +164,7 @@
 
       <div class="card" id="fastCard">
         <div class="row"><h2>빠른 성장 (테스트)</h2><button class="btn" id="bFast" aria-pressed="false">켜기</button></div>
-        <p class="hint">켜면 경험치 8배, 에너지 회복 5배로 빨라져요. 한 번이라도 켠 몬스터는 결투장에 <b>테스트</b> 표시가 붙어요.</p>
+        <p class="hint">켜면 시간이 60배 빨리 흘러요(성체까지 약 37분). 배고픔·기분도 60배로 떨어져요. 한 번이라도 켠 몬스터는 결투장에 <b>테스트</b> 표시가 붙어요.</p>
       </div>
 
       <!-- 새 알 받기: 성체일 때만 보임 -->
@@ -154,7 +185,7 @@
       <div class="card">
         <div class="row"><h2>내 결투장 몽글이</h2><span class="pill" id="slotCount">0/2</span></div>
         <div id="myEntries"></div>
-        <p class="hint" id="regInfo">성체(Lv.50)가 되면 등록할 수 있어요.</p>
+        <p class="hint" id="regInfo">성체가 되면 등록할 수 있어요.</p>
         <button class="btn primary" id="bReg" hidden>결투장에 등록</button>
         <div id="replacePick" hidden style="display:flex;flex-direction:column;gap:8px">
           <p class="warnnote" id="replaceWarn"></p>

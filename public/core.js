@@ -14,10 +14,10 @@
   const TYPE_ORDER = ['muk', 'jji', 'ppa'];
   const ADV = 1.3, DIS = 0.8;   // 유리할 때 / 불리할 때 주는 피해 배수
 
-  // ---------- 성체 형태 (공격형·방어형·만능형 + 꾀죄죄) ----------
+  // ---------- 성체 형태 (공격형·방어형·만능형) ----------
   const STYLES = {
-    atk:     { name: '공격형',   how: '공격력이 방어력보다 30% 이상 높음', mult: { atk: 1.3, def: 0.95 } },
-    def:     { name: '방어형',   how: '방어력이 공격력보다 30% 이상 높음', mult: { def: 1.3, hp: 1.15, atk: 0.95 } },
+    atk: { name: '공격형', mult: { atk: 1.3, def: 0.95 } },
+    def: { name: '방어형', mult: { def: 1.3, hp: 1.15, atk: 0.95 } },
     all:     { name: '만능형',   how: '공격력과 방어력이 비슷함',          mult: { hp: 1.08, atk: 1.12, def: 1.12, spd: 1.05 } }
   };
   const ADULT_NAMES = {
@@ -35,13 +35,12 @@
   const FORMS = {
     egg:        { name: '알',     stage: 'egg' },
     mongsil:    { name: '몽실',   stage: 'baby',   how: 'Lv.10에 알에서 부화' },
-    ppulmong:   { name: '뿔몽',   stage: 'rookie', atk: 1.15, how: 'Lv.30 · 공격력 ≥ 방어력' },
-    dandanmong: { name: '단단몽', stage: 'rookie', def: 1.15, hp: 1.05, how: 'Lv.30 · 방어력 > 공격력' }
+    ppulmong:   { name: '뿔몽',   stage: 'rookie', atk: 1.15 },
+    dandanmong: { name: '단단몽', stage: 'rookie', def: 1.15, hp: 1.05 }
   };
   TYPE_ORDER.forEach(t => {
     ['atk', 'def', 'all'].forEach(s => {
-      FORMS[`${t}_${s}`] = Object.assign({ name: ADULT_NAMES[t][s], stage: 'adult', type: t, style: s, sprite: ADULT_SPRITES[t][s],
-        how: `Lv.50 · ${TYPES[t].name} 성향 · ${STYLES[s].name}` }, STYLES[s].mult);
+      FORMS[`${t}_${s}`] = Object.assign({ name: ADULT_NAMES[t][s], stage: 'adult', type: t, style: s, sprite: ADULT_SPRITES[t][s] }, STYLES[s].mult);
     });
   });
   // 이전 버전 성체 → 새 타입 (기존 저장 데이터 변환용)
@@ -88,18 +87,21 @@
     const pool = POOLS.adult[f.type || 'muk'];
     return pool.includes(f.sprite) ? f.sprite : pickStable(pool, seed);
   }
-  const lookName = o => (o && LOOKS[o.look]) || ((FORMS[o && o.form] || {}).name) || '?';
   const STAT_KO = { hp: '체력', atk: '공격력', def: '방어력', spd: '속도' };
 
   // 시간·행동 규칙
   const RULES = {
     base: { hpMin: 50, hpMax: 70, sum: 30, min: 5 },   // 알 받을 때 기본 능력치 (체력 범위, 공격+방어+속도 합, 각 최솟값)
-    energyEvery: 10, energyEveryFast: 2,
-    hungerEvery: 90, moodEvery: 120, poopEvery: 1500,
-    maxOffline: 12 * 3600,
-    fastExp: 8,
-    maxLevel: 50,                 // 레벨 50에서 성체가 되고 성장이 끝남
-    trainCost: 12,
+    // ---- 시간 기준 성장 (초) ----
+    // 알 1시간 → 유체 12시간 → 아성체 24시간 → 성체. 건강도 80% 이상 1배, 50% 이상 0.5배, 그 밑은 멈춤
+    grow: { egg: 3600, baby: 12 * 3600, rookie: 24 * 3600 },
+    healthFull: 80, healthHalf: 50,
+    warmMul: 3, warmHold: 120,    // 알 품기: 누르고 있는 동안 3배 (한 번 누르면 최대 2분, 계속 누르면 연장)
+    energyEvery: 60, maxEnergy: 100,   // 에너지 1분에 1 회복, 최대 100
+    hungerEvery: 432, moodEvery: 576, poopEvery: 3 * 3600,   // 배부름 12시간, 기분 16시간에 100→0, 똥 3시간마다 1개
+    fastMul: 60,                  // 빠른 성장(테스트): 시간이 60배로 흐름
+    maxOffline: 60 * 24 * 3600,   // 60일 넘게 비운 시간은 계산 안 함
+    trainCost: 20,
     // 결투장 도전 횟수 (몽글이마다 따로): 등록 때 10번, 최대 10번, 10분마다 1번 회복, 도전 1회에 1번
     arenaMax: 10, battleCost: 1, arenaEnergyEvery: 600,
     maxEntries: 2,                // 한 계정당 결투장에 올릴 수 있는 몽글이 수
@@ -109,9 +111,12 @@
   };
 
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-  const need = l => 8 + l * 3;
+  // 레벨은 없어졌지만 능력치·훈련 난이도는 단계마다 예전 레벨 값으로 계산
+  // 유체는 부화 때 생긴 기본 능력치 그대로(보너스 0), 아성체·성체는 예전 Lv.30·50 성장만큼 보너스
+  const STAGE_LV = { egg: 1, baby: 1, rookie: 30, adult: 50 };
+  const stageLv = p => p.stage ? STAGE_LV[p.stage] || 1 : (p.level || 1);
 
-  // 알을 받을 때 정해지는 기본 능력치 (무작위)
+  // 부화할 때 정해지는 기본 능력치 (무작위)
   //  체력 50~70, 공격력+방어력+속도 = 30 (각각 최소 5). 나머지 15를 가능한 나눔 136가지 중 하나로 고르게 뽑음
   function rollBase(rnd = Math.random) {
     const R = RULES.base, int = n => Math.min(n - 1, Math.floor(rnd() * n));
@@ -126,8 +131,9 @@
 
   function newPet(name, now, rnd = Math.random) {
     return {
-      v: 3, name, stage: 'egg', form: 'egg', look: 'egg', type: null, style: null, level: 1, exp: 0,
-      base: rollBase(rnd),
+      v: 4, name, stage: 'egg', form: 'egg', look: 'egg', type: null, style: null,
+      grow: 0, warmUntil: 0, evoUnseen: null,
+      base: null,               // 기본 능력치는 부화할 때 정해짐
       hunger: 80, mood: 80, energy: 100, poops: 0, mistakes: 0,
       hp: 0, atk: 0, def: 0, spd: 0, wins: 0, losses: 0,
       care: { muk: 0, jji: 0, ppa: 0 },
@@ -162,7 +168,6 @@
     if (!pet) return pet;
     if (!pet.care) pet.care = { muk: 0, jji: 0, ppa: 0 };
     if (typeof pet.hp !== 'number') pet.hp = 0;
-    if (pet.level > RULES.maxLevel) { pet.level = RULES.maxLevel; pet.exp = 0; }
     // 꾀죄죄몽은 없어짐: 예전 꾀죄죄몽은 같은 타입의 보통 형태로
     if (pet.stage === 'adult' && /^scruffy/.test(pet.form)) {
       pet.type = pet.form.split('_')[1] || LEGACY.scruffy; pet.style = decideStyle(pet);
@@ -175,7 +180,17 @@
     }
     if (pet.stage === 'adult' && FORMS[pet.form]) { pet.type = FORMS[pet.form].type; pet.style = FORMS[pet.form].style; }
     if (!pet.look) pet.look = legacyLook(pet);
-    pet.v = 3;
+    // v4: 레벨 → 시간 기준. 지금 단계 안에서 레벨이 간 만큼 성장 시간을 채워 줌
+    if (!(pet.v >= 4)) {
+      const L = pet.level || 1, G = RULES.grow;
+      pet.grow = pet.stage === 'egg' ? clamp((L - 1) / 9, 0, 0.99) * G.egg
+        : pet.stage === 'baby' ? clamp((L - 10) / 20, 0, 0.99) * G.baby
+        : pet.stage === 'rookie' ? clamp((L - 30) / 20, 0, 0.99) * G.rookie : 0;
+      pet.warmUntil = 0; pet.evoUnseen = null;
+      pet.energy = clamp(pet.energy, 0, RULES.maxEnergy);
+    }
+    if (typeof pet.grow !== 'number') pet.grow = 0;
+    pet.v = 4;
     return pet;
   }
   // 결투장 등록 정보 변환 (이전 버전 등록분에 타입이 없을 때)
@@ -193,10 +208,23 @@
   }
 
   // ---------- 시간 ----------
+  // 건강도: 배부름·기분·청결(똥 1개마다 -25)의 평균. 알·성체는 따지지 않음
+  function health(pet) {
+    if (pet.stage === 'egg' || pet.stage === 'adult') return 100;
+    return Math.round((pet.hunger + pet.mood + Math.max(0, 100 - 25 * pet.poops)) / 3);
+  }
+  // 지금 성장 속도 (1 / 0.5 / 0). 알은 품는 중이면 3
+  function growRate(pet, nowMs) {
+    if (pet.stage === 'adult') return 0;
+    if (pet.stage === 'egg') return nowMs < (pet.warmUntil || 0) ? RULES.warmMul : 1;
+    const h = health(pet);
+    return h >= RULES.healthFull ? 1 : h >= RULES.healthHalf ? 0.5 : 0;
+  }
+  const growNeed = pet => RULES.grow[pet.stage] || Infinity;
+  // sec초(게임 시간) 동안 배고픔·기분·똥·에너지 변화
   function tick(pet, sec) {
     const a = pet.acc;
-    const ei = pet.fast ? RULES.energyEveryFast : RULES.energyEvery;
-    a.e += sec; let n = Math.floor(a.e / ei); a.e -= n * ei; pet.energy = Math.min(100, pet.energy + n);
+    a.e += sec; let n = Math.floor(a.e / RULES.energyEvery); a.e -= n * RULES.energyEvery; pet.energy = Math.min(RULES.maxEnergy, pet.energy + n);
     if (pet.stage === 'egg' || pet.stage === 'adult') return;   // 알과 성체는 배고픔·기분·똥 없음
     a.h += sec; n = Math.floor(a.h / RULES.hungerEvery); a.h -= n * RULES.hungerEvery; pet.hunger = Math.max(0, pet.hunger - n);
     a.m += sec * (pet.poops >= 2 ? 1.6 : 1); n = Math.floor(a.m / RULES.moodEvery); a.m -= n * RULES.moodEvery; pet.mood = Math.max(0, pet.mood - n);
@@ -205,23 +233,58 @@
     if (pet.hunger > 20) pet.flags.starve = false;
     if (pet.poops >= 4 && !pet.flags.dirty) { pet.mistakes++; pet.flags.dirty = true; }
   }
-  // now 시점까지 시간을 흘려보냄. 시계가 거꾸로 가면 무시.
-  function advance(pet, now) {
+  // now 시점까지 시간을 흘려보냄 (게임 시간 1분 단위). 건강도에 따라 성장 시간이 쌓이고, 다 차면 진화.
+  // 진화는 한 번에 한 단계만: 진화 장면을 아직 안 봤으면(evoUnseen) 다음 단계 성장은 다 차기 직전에서 멈춤
+  function advance(pet, now, rnd) {
     migrate(pet);
-    const dt = (now - pet.last) / 1000;
-    if (dt > 0) { tick(pet, Math.min(dt, RULES.maxOffline)); pet.last = now; }
+    let t = pet.last;
+    const end = Math.min(now, pet.last + RULES.maxOffline * 1000);
+    if (!(end > t)) return [];
+    const mul = pet.fast ? RULES.fastMul : 1, stepMs = 60000 / mul, evos = [];
+    while (t < end) {
+      const dtMs = Math.min(stepMs, end - t), sim = dtMs / 1000 * mul;
+      // 성장: 이 구간 시작 때의 건강도로 (알은 품는 구간만 3배)
+      if (pet.stage === 'egg') {
+        const warmMs = clamp((pet.warmUntil || 0) - t, 0, dtMs);
+        pet.grow += sim + (RULES.warmMul - 1) * (warmMs / 1000 * mul);
+      } else pet.grow += sim * growRate(pet, t);
+      tick(pet, sim);
+      t += dtMs;
+      const need = growNeed(pet);
+      if (pet.grow >= need) {
+        if (pet.evoUnseen || evos.length) pet.grow = need - 1;
+        else {
+          const e = checkEvo(pet, rnd);
+          if (e) { e.at = t; evos.push(e); pet.evoUnseen = e; pet.grow = 0; pet.warmUntil = 0; }
+        }
+      }
+    }
+    pet.last = now;
+    return evos;
+  }
+  // 다음 진화까지 남은 실제 시간(초). 지금 속도가 0이면 null
+  function evoLeft(pet, nowMs) {
+    if (pet.stage === 'adult') return null;
+    const r = growRate(pet, nowMs) * (pet.fast ? RULES.fastMul : 1);
+    return r > 0 ? Math.max(0, (growNeed(pet) - pet.grow) / r) : null;
+  }
+  // 알 품기 시작/끝
+  function warm(pet, on, nowMs) {
+    if (pet.stage !== 'egg') return { ok: false, msg: '이미 부화했어요.' };
+    pet.warmUntil = on ? nowMs + RULES.warmHold * 1000 : Math.min(pet.warmUntil || 0, nowMs);
+    return { ok: true, msg: on ? '따뜻하게 품는 중… 시간이 3배로 흘러요.' : '' };
   }
 
   // ---------- 성장 ----------
   // 진화: 형태(form)는 규칙대로, 모습(look)은 그 단계·타입 안에서 무작위
   function checkEvo(pet, rnd) {
     const from = pet.look || pet.form; let to = null, look = null;
-    if (pet.stage === 'egg' && pet.level >= 10) { to = 'mongsil'; pet.stage = 'baby'; look = pickRandom(POOLS.baby, rnd); }
-    else if (pet.stage === 'baby' && pet.level >= 30) {
+    if (pet.stage === 'egg') { to = 'mongsil'; pet.stage = 'baby'; look = pickRandom(POOLS.baby, rnd); if (!pet.base) pet.base = rollBase(rnd); }   // 부화하면 기본 능력치가 생김
+    else if (pet.stage === 'baby') {
       const side = pet.atk >= pet.def ? 'atk' : 'def';
       to = side === 'atk' ? 'ppulmong' : 'dandanmong'; pet.stage = 'rookie'; look = pickRandom(POOLS.rookie[side], rnd);
     }
-    else if (pet.stage === 'rookie' && pet.level >= 50) {
+    else if (pet.stage === 'rookie') {
       pet.stage = 'adult';
       pet.type = topType(pet.care);       // 묵·찌·빠는 성향으로 결정
       pet.style = decideStyle(pet);       // 공격형·방어형·만능형은 능력치로 결정
@@ -231,22 +294,10 @@
     if (to) { pet.form = to; pet.look = look; return { from, to: look }; }
     return null;
   }
-  function gainExp(pet, x) {
-    if (pet.stage === 'adult' || pet.level >= RULES.maxLevel) return { ups: 0, evos: [] };
-    pet.exp += Math.round(x * (pet.fast ? RULES.fastExp : 1));
-    let ups = 0; const evos = [];
-    while (pet.level < RULES.maxLevel && pet.exp >= need(pet.level)) {
-      pet.exp -= need(pet.level); pet.level++; ups++;
-      const e = checkEvo(pet); if (e) evos.push(e);
-    }
-    if (pet.level >= RULES.maxLevel) pet.exp = 0;
-    return { ups, evos };
-  }
-
   // 배틀용 능력치 4종: 체력·공격력·방어력·속도
   function bstats(p) {
-    // 기본 능력치(알 받을 때 무작위) + 레벨 성장(Lv.1은 0) + 훈련, 그 뒤 형태 배율
-    const f = FORMS[p.form] || {}, L = p.base ? p.level - 1 : p.level, b = p.base || OLD_BASE;
+    // 기본 능력치(알 받을 때 무작위) + 단계 보너스(유체·아성체·성체, 예전 Lv.10·30·50 성장만큼) + 훈련, 그 뒤 형태 배율
+    const f = FORMS[p.form] || {}, L = p.base ? stageLv(p) - 1 : stageLv(p), b = p.base || OLD_BASE;
     return {
       hp:  Math.round((b.hp  + L * 8   + (p.hp || 0) * 6) * (f.hp || 1)),
       atk: Math.round((b.atk + L * 1.2 + p.atk * 1.6) * (f.atk || 1)),
@@ -265,24 +316,18 @@
     migrate(pet);
     const egg = pet.stage === 'egg';
     if (type === 'fast') { pet.fast = !pet.fast; if (pet.fast) pet.usedFast = true; return { ok: true, msg: pet.fast ? '빠른 성장을 켰어요.' : '빠른 성장을 껐어요.' }; }
-    if (type === 'warm') {
-      if (!egg) return { ok: false, msg: '이미 부화했어요.' };
-      if (pet.energy < 5) return { ok: false, msg: '에너지가 부족해요. 잠시 쉬어 주세요.' };
-      pet.energy -= 5; const info = gainExp(pet, 20);
-      return { ok: true, msg: info.evos.length ? '' : '알이 따뜻해졌어요.', info };
-    }
     if (egg) return { ok: false, msg: '알은 품어 주기만 할 수 있어요.' };
     if (pet.stage === 'adult') return { ok: false, msg: '다 자란 몽글이는 더 돌보거나 키울 수 없어요. 결투장에 등록해 보세요.' };
     if (type === 'feed') {
-      if (pet.hunger >= 100) { pet.mood = Math.max(0, pet.mood - 5); return { ok: true, msg: '배불러서 싫대요.' }; }
+      if (pet.hunger >= 100) { pet.mood = Math.max(0, pet.mood - 5); return { ok: true, msg: '배불러서 싫대요.', refuse: true }; }
       pet.hunger = Math.min(100, pet.hunger + 25); addCare(pet, 'feed');
-      return { ok: true, msg: '냠냠!', info: gainExp(pet, 3) };
+      return { ok: true, msg: '냠냠!' };
     }
     if (type === 'play') {
       if (pet.mood >= 100) return { ok: false, msg: '이미 기분이 최고예요.' };
       if (pet.energy < 5) return { ok: false, msg: '너무 피곤해요.' };
       pet.mood = Math.min(100, pet.mood + 20); pet.energy -= 5; addCare(pet, 'play');
-      return { ok: true, msg: '신나게 놀았어요.', info: gainExp(pet, 3) };
+      return { ok: true, msg: '신나게 놀았어요.' };
     }
     if (type === 'clean') {
       if (!pet.poops) return { ok: false, msg: '치울 게 없어요.' };
@@ -291,37 +336,141 @@
     return { ok: false, msg: '알 수 없는 행동이에요.' };
   }
 
-  // ---------- 훈련 미니게임 (막대 36칸, 마커 왕복) ----------
-  const BAR = 36;
+  // ---------- 훈련 미니게임 ----------
+  // 네 훈련 모두 "시작 1번 + 끝 1번" 통신. 화면은 누른 시각 등을 taps로 모아 보내고, 서버는 같은 규칙(씨앗 포함)으로 다시 셈
+  //  체력 = 줄넘기(rope), 속도 = 폭탄 피하기(dodge), 방어 = 조준점 막기(guard), 공격 = 묵찌빠(rps). 1회 최대 +20
+  const TRAIN_MAX = 20;
   const TRAIN_KINDS = ['hp', 'atk', 'def', 'spd'];
-  function trainParams(pet, rnd) {
-    const r = rnd || Math.random;
-    const zw = Math.max(6, 12 - Math.floor(pet.level / 15));
-    const z0 = 2 + Math.floor(r() * (BAR - zw - 4));
-    return { zw, z0, zc: z0 + Math.floor(zw / 2), speed: 30 + pet.level * 0.5 };
+  const GAME_OF = { hp: 'rope', spd: 'dodge', def: 'guard', atk: 'rps' };
+  const GAMES = {
+    // 막대 36칸 양끝 6칸 구역, 구역에서 누르면 방향 전환 + 1.12배 빨라짐
+    rope: { len: 36, zone: 6, speed0: 16, accel: 1.12, ready: 700 },
+    // 3줄, 떨어진 거리 = v0·(s + k·s²/2) 칸. 폭탄 줄 i의 윗칸 y = floor(거리) - bombH - i·gap
+    // 거리 기준: 몸통이 몽글이에 닿기 시작(y≥5) / 벗어남(y≥16) / 몽글이 아래로 완전히 지나감(y≥19)
+    dodge: { lanes: 3, v0: 12, k: 0.08, gap: 20, bombH: 8, ready: 700, enter: 13, exit: 24, pass: 27, seeded: true },
+    // 5곳(몸 크기 직사각형 네 꼭짓점 + 정가운데). 막을 시간 1.2초→0.35초, 다음은 0.2~1초 무작위, 가끔(25%) 3연속(0.1초)
+    guard: { ready: 700, w0: 1200, w1: 350, gapMin: 200, gapMax: 1000, burstGap: 100, burstP: 0.25, spots: 5, seeded: true },
+    // 상대 손을 보고 이기는 손(가끔 지는 손) 내기. 낼 시간 1.2초→0.4초, 성공하면 0.35초 뒤 다음
+    rps: { ready: 700, w0: 1200, w1: 400, next: 350, loseP: 0.2, loseFrom: 4, seeded: true }
+  };
+  const MAX_TAPS = 400;
+  function trainParams(pet, rnd, kind) {
+    const game = GAME_OF[kind], g = GAMES[game];
+    return Object.assign({ game, maxOk: TRAIN_MAX }, g, g.seeded ? { seed: Math.floor((rnd || Math.random)() * 2147483647) } : {});
   }
-  function markerPos(params, elapsedMs) {
-    const period = 2 * (BAR - 1);
-    const d = (params.speed * Math.max(0, elapsedMs) / 1000) % period;
-    return d <= BAR - 1 ? d : period - d;
+  // 씨앗으로 만드는 난수 (서버·화면 같음)
+  function seeded(seed) { let st = seed >>> 0; return () => { st = (st * 1664525 + 1013904223) >>> 0; return st / 4294967296; }; }
+  // i번째(0부터) 제한 시간: w0 → 마지막 w1로 고르게 줄어듦
+  const shrinkWindow = (p, i) => Math.round(p.w0 - (p.w0 - p.w1) * Math.min(i, p.maxOk - 1) / (p.maxOk - 1));
+
+  // 줄넘기: taps = 누른 시각(ms). 반환 pos, dir, ok, over('miss' 구역 밖 / 'pass' 끝 지나침 / 'max'), endAt
+  function ropeRun(p, taps, at) {
+    const last = p.len - 1;
+    let t = p.ready, pos = 0, dir = 1, speed = p.speed0, ok = 0;
+    const crossAt = () => t + 1000 * (dir > 0 ? last - pos : pos) / speed;   // 끝에 닿는 시각
+    const inZone = x => dir > 0 ? x >= p.len - p.zone : x <= p.zone - 1;
+    for (const tt of taps) {
+      if (tt < p.ready) continue;                                // 준비 중 터치는 무시
+      if (tt > crossAt()) return { pos: dir > 0 ? last : 0, dir, ok, over: 'pass', endAt: crossAt() };
+      const x = pos + dir * speed * (tt - t) / 1000;
+      if (!inZone(x)) return { pos: x, dir, ok, over: 'miss', endAt: tt };
+      pos = x; t = tt; dir = -dir; speed *= p.accel; ok++;
+      if (ok >= p.maxOk) return { pos, dir, ok, over: 'max', endAt: tt };
+    }
+    if (at < p.ready) return { pos: 0, dir: 1, ok, over: null };
+    if (at > crossAt()) return { pos: dir > 0 ? last : 0, dir, ok, over: 'pass', endAt: crossAt() };
+    return { pos: pos + dir * speed * (at - t) / 1000, dir, ok, over: null };
   }
-  function judge(params, elapsedMs) {
-    const m = Math.round(markerPos(params, elapsedMs));
-    if (Math.abs(m - params.zc) <= 1) return 'perfect';
-    if (m >= params.z0 && m < params.z0 + params.zw) return 'hit';
-    return 'fail';
+
+  // 폭탄 배치: 한 줄에 1~2개(3줄이 다 막히는 일은 없음), 뒤로 갈수록 2개짜리가 많아짐
+  function dodgeWaves(p) {
+    const r = seeded(p.seed), out = [];
+    for (let i = 0; i < p.maxOk + 2; i++) {
+      const two = i > 1 && r() < Math.min(0.65, 0.2 + i * 0.03), free = Math.floor(r() * 3), one = Math.floor(r() * 3);
+      out.push(two ? [0, 1, 2].filter(l => l !== free) : [one]);
+    }
+    return out;
   }
-  function applyTrain(pet, kind, res) {
+  const dodgeDist = (p, ms) => { const s = Math.max(0, ms - p.ready) / 1000; return p.v0 * (s + p.k * s * s / 2); };
+  const dodgeTimeAt = (p, D) => p.ready + 1000 * (Math.sqrt(1 + 2 * p.k * D / p.v0) - 1) / p.k;   // 거리 D에 닿는 시각(ms)
+  const dodgeWaveY = (p, i, ms) => Math.floor(dodgeDist(p, ms)) - p.bombH - i * p.gap;
+  // taps = [{t, d}] (d = -1 왼쪽 / +1 오른쪽). 반환 lane, ok(지나 보낸 줄), over('hit'|'max'), endAt, hitWave
+  function dodgeRun(p, taps, at, waves) {
+    const W = waves || dodgeWaves(p);
+    const mv = taps.filter(m => m.t >= p.ready).slice().sort((a, b) => a.t - b.t);
+    const laneAt = t => { let l = 1; for (const m of mv) { if (m.t > t) break; l = clamp(l + (m.d > 0 ? 1 : -1), 0, p.lanes - 1); } return l; };
+    const passedBy = t => { let n = 0; while (n < p.maxOk && t >= dodgeTimeAt(p, p.pass + n * p.gap)) n++; return n; };
+    let endAt = Infinity, over = null, hitWave = -1;
+    for (let i = 0; i < p.maxOk; i++) {
+      const t0 = dodgeTimeAt(p, p.enter + i * p.gap), t1 = dodgeTimeAt(p, p.exit + i * p.gap);
+      if (t0 > Math.min(at, endAt)) break;
+      // 겹치는 동안의 줄: 들어올 때 줄 + 그 사이에 옮긴 순간마다
+      const checks = [t0].concat(mv.filter(m => m.t > t0 && m.t < t1).map(m => m.t));
+      for (const t of checks) if (t <= at && W[i].includes(laneAt(t))) { if (t < endAt) { endAt = t; over = 'hit'; hitWave = i; } break; }
+    }
+    const tMax = dodgeTimeAt(p, p.pass + (p.maxOk - 1) * p.gap);
+    if (!over && at >= tMax) { over = 'max'; endAt = tMax; }
+    const tt = over ? endAt : at;
+    return { lane: laneAt(tt), ok: passedBy(tt), over, endAt: over ? endAt : null, hitWave };
+  }
+
+  // 조준·묵찌빠 공통: 문제 목록을 차례로 풀기. answer(q)가 정답, taps = [{t, v}] (v = 누른 자리/손)
+  // 뜨기 전 누른 건 무시, 시간 지나면 'time', 틀리면 'miss'. 반환 ok, appear(지금 문제가 뜬/뜰 시각), over, endAt
+  function quizRun(p, taps, at, Q, answer, nextGap) {
+    let ok = 0, appear = p.ready;
+    for (const tp of taps.slice().sort((a, b) => a.t - b.t)) {
+      if (tp.t < appear) continue;
+      const until = appear + shrinkWindow(p, ok);
+      if (tp.t > until) return { ok, appear, over: 'time', endAt: until };
+      if (tp.v !== answer(Q[ok])) return { ok, appear, over: 'miss', endAt: tp.t };
+      if (++ok >= p.maxOk) return { ok, appear, over: 'max', endAt: tp.t };
+      appear = tp.t + nextGap(Q[ok]);
+    }
+    const until = appear + shrinkWindow(p, ok);
+    return at > until ? { ok, appear, over: 'time', endAt: until } : { ok, appear, over: null };
+  }
+  // 조준 순서: [{spot(0~4), gap, step(3연속 몇 번째, 0이면 아님)}], 바로 전과 같은 자리는 없음
+  function guardPlan(p) {
+    const r = seeded(p.seed), out = []; let burst = 0;
+    for (let i = 0; i < p.maxOk; i++) {
+      let spot; do { spot = Math.floor(r() * p.spots); } while (i && out[i - 1].spot === spot);
+      let gap = Math.round(p.gapMin + r() * (p.gapMax - p.gapMin)), step = 0;
+      if (burst > 0) { gap = p.burstGap; step = 4 - burst; burst--; }
+      else if (i >= 2 && i <= p.maxOk - 3 && r() < p.burstP) { burst = 2; step = 1; }
+      out.push({ spot, gap, step });
+    }
+    return out;
+  }
+  const guardRun = (p, taps, at, Q) => quizRun(p, taps, at, Q || guardPlan(p), q => q.spot, q => q.gap);
+  // 묵찌빠 문제: [{op(상대 손), lose(지는 손을 내야 함)}]
+  function rpsPlan(p) {
+    const r = seeded(p.seed), out = [];
+    for (let i = 0; i < p.maxOk; i++) out.push({ op: TYPE_ORDER[Math.floor(r() * 3)], lose: i >= p.loseFrom && r() < p.loseP });
+    return out;
+  }
+  const rpsWinner = h => TYPE_ORDER.find(k => TYPES[k].beats === h);          // h를 이기는 손
+  const rpsAnswer = q => q.lose ? TYPES[q.op].beats : rpsWinner(q.op);
+  const rpsRun = (p, taps, at, Q) => quizRun(p, taps, at, Q || rpsPlan(p), rpsAnswer, () => p.next);
+
+  // 서버: 화면이 보낸 taps를 정리해서 성공 수를 다시 셈 (서버가 잰 시간보다 늦은 입력은 버림)
+  function trainJudge(p, taps, elapsed) {
+    if (!p || elapsed > 60000 || !Array.isArray(taps)) return 0;
+    const ok = x => Number.isFinite(x.t) && x.t >= 0 && x.t <= elapsed;
+    const list = taps.slice(0, MAX_TAPS);
+    const run = p.game === 'rope' ? ropeRun(p, list.map(Number).filter(t => ok({ t })).sort((a, b) => a - b), elapsed)
+      : p.game === 'dodge' ? dodgeRun(p, list.map(x => ({ t: Number(x && x.t), d: Number(x && x.d) > 0 ? 1 : -1 })).filter(ok), elapsed)
+      : p.game === 'guard' ? guardRun(p, list.map(x => ({ t: Number(x && x.t), v: Number(x && x.v) })).filter(ok), elapsed)
+      : p.game === 'rps' ? rpsRun(p, list.map(x => ({ t: Number(x && x.t), v: String(x && x.v) })).filter(ok), elapsed)
+      : { ok: 0 };
+    return Math.min(TRAIN_MAX, run.ok);
+  }
+  // 훈련 결과 저장: 에너지 20, 배부름 6을 쓰고 능력치 +ok
+  function applyTraining(pet, kind, ok) {
     migrate(pet);
     pet.energy -= RULES.trainCost; pet.hunger = Math.max(0, pet.hunger - 6);
-    const mult = 1 + pet.level / 25, base = { fail: 10, hit: 25, perfect: 40 }[res];
-    const moodF = pet.mood < 30 ? 0.7 : 1;
-    pet[kind] += res === 'perfect' ? 2 : res === 'hit' ? 1 : 0;
+    ok = clamp(ok | 0, 0, TRAIN_MAX); pet[kind] += ok;
     addCare(pet, 'train');
-    const info = gainExp(pet, base * mult * moodF);
-    const kn = STAT_KO[kind];
-    const msg = res === 'perfect' ? `대성공! ${kn} +2` : res === 'hit' ? `성공! ${kn} +1` : '아쉬워요. 경험치만 조금 얻었어요.';
-    return { msg, info };
+    return { msg: ok ? `${ok}번 성공! ${STAT_KO[kind]} +${ok}` : '아쉬워요. 다음엔 잘할 거예요.' };
   }
 
   // ---------- 상성 ----------
@@ -381,6 +530,10 @@
     entry.energy = cur - cost;
     return entry;
   }
+  // 결투장 등록 정보 (등록 순간의 능력치를 저장) / 다른 사람에게 보여 줄 때 숨길 값 빼기
+  const entryFromPet = pet => Object.assign({ name: pet.name, form: pet.form, look: pet.look, type: pet.type, style: pet.style, level: 50,
+    usedFast: !!pet.usedFast, born: pet.born, energy: RULES.arenaMax, tv: 2 }, bstats(pet));
+  const publicEntry = e => { const o = Object.assign({}, e); ['uid', 'born', 'energy', 'energyAt', 'energyNow', 'tv'].forEach(k => delete o[k]); return o; };
   // ---------- 랭킹 ----------
   // 1) (승 - 패)가 큰 순, 같으면 승이 많은 순
   // 2) 승·패가 똑같은 몽글이끼리는 서로 맞붙은 전적으로 비교 (여럿이면 그들끼리의 승-패 합)
@@ -415,9 +568,11 @@
       hp: src.hp, atk: src.atk, def: src.def, spd: src.spd };
   }
 
-  return { FORMS, LOOKS, POOLS, lookName, legacyLook, TYPES, TYPE_ORDER, STYLES, STAGE_KO, STAT_KO, RULES, BAR, TRAIN_KINDS, ADV, DIS, LEGACY,
-    arenaEnergy, arenaNextIn, spendArenaEnergy, rankEntries,
-    clamp, need, newPet, tick, advance, migrate, migrateEntry, topType, tendency, decideStyle, adultForm,
-    checkEvo, gainExp, bstats, rollBase, applyAction, trainParams, markerPos, judge, applyTrain,
+  return { FORMS, LOOKS, POOLS, legacyLook, TYPES, TYPE_ORDER, STYLES, STAGE_KO, STAT_KO, RULES, ADV, DIS, LEGACY,
+    arenaEnergy, arenaNextIn, spendArenaEnergy, rankEntries, entryFromPet, publicEntry,
+    clamp, newPet, advance, health, growRate, evoLeft, warm, migrate, migrateEntry, topType, tendency, decideStyle,
+    checkEvo, bstats, rollBase, applyAction,
+    TRAIN_MAX, TRAIN_KINDS, GAMES, trainParams, trainJudge, applyTraining,
+    ropeRun, dodgeWaves, dodgeDist, dodgeWaveY, dodgeTimeAt, dodgeRun, guardPlan, guardRun, rpsPlan, rpsAnswer, rpsRun, shrinkWindow,
     typeMult, elementMult, affinity, simulate, side };
 });

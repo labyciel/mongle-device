@@ -70,10 +70,10 @@ const POOP = ["...#....","..#o#...","..###...",".#ooo#..",".#####..","#ooooo#.",
 // ---------- 상태 ----------
 const TOKEN_KEY = 'mongle-token';
 let token = null; try { token = localStorage.getItem(TOKEN_KEY); } catch (e) {}
-let nick = '', pet = null, mine = [], maxEntries = 2, allowFast = true;
+let nick = '', pet = null, mine = [], maxEntries = 2, allowFast = false;   // 테스트 모드(빠른 성장)는 서버가 허용할 때만 보임
 let fighterId = null, picks = [];   // 출전할 내 몽글이, 무작위로 뽑힌 상대들
 let offset = 0;            // 서버시계 - 내 시계 (ms)
-let mode = 'idle', train = null, battle = null, evo = null, busy = false;
+let mode = 'idle', train = null, battle = null, evo = null, busy = false, evoKey = null, warming = false, lastSync = 0;
 let arena = [];
 let wx = 8, facing = 1, lastStep = 0;
 const serverNow = () => Date.now() + offset;
@@ -100,11 +100,18 @@ function apply(data) {
   if ('pet' in data) {
     const prevForm = pet && pet.form;
     pet = data.pet;
-    if (data.info && data.info.evos && data.info.evos.length) {
-      const e = data.info.evos[data.info.evos.length - 1];
+    if (warming && pet && pet.stage !== 'egg') { warming = false; clearInterval(warmT); warmT = null; }   // 품다가 부화함
+    // 진화: 서버가 진화시킨 뒤 아직 안 본 장면(evoUnseen)이 있으면 보여 주고, 다 보면 서버에 알림
+    const e = pet && pet.evoUnseen, key = e && `${e.from}>${e.to}@${e.at}`;
+    if (e && key !== evoKey) {
+      evoKey = key;
       evo = { from: e.from, to: e.to, until: performance.now() + 1800 };
-      setTimeout(() => toast(pet.stage === 'adult' ? `성체로 진화했어요! ${kindText(pet)}` : `${C.STAGE_KO[pet.stage]}(으)로 진화했어요!`), 1800);
-    } else if (data.info && data.info.ups) toast(`레벨 업! Lv.${pet.level}`);
+      setTimeout(() => {
+        const b0 = C.bstats(pet);
+        toast(pet.stage === 'adult' ? `성체로 진화했어요! ${kindText(pet)}` : pet.stage === 'baby' ? `부화했어요! 체력 ${b0.hp} · 공격력 ${b0.atk} · 방어력 ${b0.def} · 속도 ${b0.spd}` : `${C.STAGE_KO[pet.stage]}(으)로 진화했어요!`);
+        api('/seen', {}).then(apply).catch(() => {});
+      }, 1800);
+    }
     void prevForm;
   }
   if ('mine' in data) {
@@ -213,6 +220,7 @@ const openOf = key => OPEN_CACHE[key] || (OPEN_CACHE[key] = MOUTH[key] ? openMou
 const EAT = { open: 200, close: 220, hop: 180, bone: 700, chomps: 3 };
 EAT.total = EAT.chomps * (EAT.open + EAT.close) + EAT.hop * 4 + EAT.bone;
 let eat = null;   // { t0 } 밥 먹는 중
+const eating = () => !!eat && performance.now() - eat.t0 < (eat.refuse ? REFUSE.total : EAT.total);
 function eatState(t) {
   const cyc = EAT.open + EAT.close, end = EAT.chomps * cyc;
   if (t < end) {
@@ -221,6 +229,31 @@ function eatState(t) {
   }
   const h = t - end;
   return { open: false, lean: 0, bite: 3, hop: h < EAT.hop * 4 && !(Math.floor(h / EAT.hop) % 2) ? -1 : 0, crumb: -1, gone: h >= EAT.hop * 4 };
+}
+// 배부를 때: 고기는 놓이지만 먹지 않고 얼굴을 좌우로 돌림 (거절)
+const REFUSE = { steps: [0, -1, 1, -1, 1, 0], step: 250 };
+REFUSE.total = REFUSE.steps.length * REFUSE.step;
+// 얼굴 돌리기: 몸 안쪽의 진한 칸(눈·입 같은 얼굴)을 한 칸 옆으로 옮긴 그림
+const TURN_CACHE = {};
+function faceTurn(key, dir) {
+  const ck = key + dir; if (TURN_CACHE[ck]) return TURN_CACHE[ck];
+  const g = spriteOf(key), m = MOUTH[key], maxY = m ? m.y + m.h - 1 : 11;   // 입 줄까지만 (팔·발은 그대로)
+  return TURN_CACHE[ck] = g.map((r, y) => {
+    if (y > maxY) return r;
+    const a = [...r], first = r.search(/[^.]/), last = r.length - 1 - [...r].reverse().join('').search(/[^.]/);
+    if (first < 0) return r;
+    const feats = [];
+    for (let x = first + 1; x < last; x++) if (r[x] === '#' && (r[x - 1] === 'o' || r[x + 1] === 'o')) { feats.push(x); a[x] = 'o'; }
+    feats.forEach(x => { const nx = x + dir; a[nx > first && nx < last ? nx : x] = '#'; });
+    return a.join('');
+  });
+}
+function drawRefuse(t) {
+  const key = lookOf(pet), m = MOUTH[key] || { y: 10 }, px0 = 6, py0 = 2;
+  const dir = REFUSE.steps[Math.min(REFUSE.steps.length - 1, Math.floor(t / REFUSE.step))];
+  spr(dir ? faceTurn(key, dir) : spriteOf(key), px0 + dir, py0, false);
+  const fx = px0 + 17, fy = Math.max(0, Math.min(H - MEAT[0].length, py0 + m.y - 7));
+  spr(MEAT[0], fx, fy, false);
 }
 function drawEat(t) {
   const key = lookOf(pet), m = MOUTH[key] || { y: 10 }, st = eatState(t), px0 = 6, py0 = 2;
@@ -233,16 +266,192 @@ function drawEat(t) {
   }
 }
 
+// ---------- 체력 훈련 (줄넘기 왕복) ----------
+// 작은 숫자 (3×5), 왼쪽 위 성공 횟수용
+const DIG = { 0: ['###', '#.#', '#.#', '#.#', '###'], 1: ['.#.', '##.', '.#.', '.#.', '###'], 2: ['###', '..#', '###', '#..', '###'], 3: ['###', '..#', '###', '..#', '###'], 4: ['#.#', '#.#', '###', '..#', '..#'],
+  5: ['###', '#..', '###', '..#', '###'], 6: ['###', '#..', '###', '#.#', '###'], 7: ['###', '..#', '.#.', '.#.', '.#.'], 8: ['###', '#.#', '###', '#.#', '###'], 9: ['###', '#.#', '###', '..#', '###'] };
+const num = (n, x, y) => String(n).split('').forEach((d, i) => spr(DIG[d], x + i * 4, y, false));
+// 줄: 양손(몸 양옆 가운데)을 잇는 곡선. th=0 머리 위 → π/2 몸 앞 → π 발밑 → 3π/2 몸 뒤
+const ROPE_MS = 380, HAND_L = 11, HAND_R = 28, HAND_Y = 9, ROPE_R = 8, ROPE_PX = 12;
+function drawJumpRope(th, g, py, behind) {
+  const apex = HAND_Y - ROPE_R * Math.cos(th), cx = (HAND_L + HAND_R) / 2, half = (HAND_R - HAND_L) / 2;
+  const onBody = (x, y) => { const bx = x - ROPE_PX, by = y - py; return by >= 0 && by < 16 && bx >= 0 && bx < 16 && g[by][bx] !== '.'; };
+  let prev = null;
+  for (let x = HAND_L; x <= HAND_R; x++) {
+    const u = (x - cx) / half, y = Math.round(HAND_Y + (apex - HAND_Y) * (1 - u * u));
+    const ys = prev === null || prev === y ? [y] : Array.from({ length: Math.abs(y - prev) }, (_, i) => prev + Math.sign(y - prev) * (i + 1));
+    ys.forEach(yy => { const on = onBody(x, yy); if (!(behind && on)) px(x, yy, on ? 3 : 2); });
+    prev = y;
+  }
+  px(HAND_L, HAND_Y, 2); px(HAND_R, HAND_Y, 2);   // 줄 손잡이
+}
+function drawRope(t, tr, p, st) {
+  // 몽글이 + 줄넘기: 성공하면 줄이 한 바퀴 돌고, 줄이 발밑을 지날 때 폴짝
+  const g = spriteOf(lookOf(pet)), rp = (t - tr.rope) / ROPE_MS, turning = rp >= 0 && rp < 1, th = turning ? rp * 2 * Math.PI : 0;
+  const up = turning ? Math.round(2 * Math.sin(Math.PI * C.clamp((rp - 0.2) / 0.6, 0, 1))) : 0;
+  const back = Math.sin(th) < 0;
+  if (back) drawJumpRope(th, g, -up, true);
+  spr(g, ROPE_PX, -up, false);
+  if (!back) drawJumpRope(th, g, -up, false);
+  num(st.ok, 1, 1);
+  // 막대: 가운데 줄 + 양끝 구역(위아래로 두껍게) + 구역 경계선
+  const X = 2;
+  for (let i = 0; i < p.len; i++) { const z = i < p.zone || i >= p.len - p.zone; px(X + i, 18, 1); if (z) { px(X + i, 17, 1); px(X + i, 19, 1); } }
+  for (const x of [X + p.zone - 1, X + p.len - p.zone]) for (let y = 16; y <= 19; y++) px(x, y, 2);
+  // 가고 있는 쪽 구역은 위에서 깜빡임
+  if (!tr.done && Math.floor(t / 250) % 2) { const z0 = st.dir > 0 ? p.len - p.zone : 0; for (let i = 0; i < p.zone; i++) px(X + z0 + i, 16, 1); }
+  // 원: 성공 직후 밝게 번쩍
+  const cx = X + Math.round(st.pos), lit = t - tr.flash < 140;
+  [[0, -1], [-1, 0], [0, 0], [1, 0], [0, 1]].forEach(([dx, dy]) => px(cx + dx, 18 + dy, lit ? 3 : 2));
+  if (!lit) px(cx, 18, 3);
+}
+
+// ---------- 속도 훈련 (폭탄 피하기) ----------
+// 3줄(경계선 x=0|13|26|39), 몽글이는 8×8로 줄여서 아래(11~18줄), 폭탄 몸통이 줄 한가운데 오도록 x+2
+const D_LANE_X = [1, 14, 27], D_PET_Y = 11, D_BX = 2;
+const BOMB = [
+  ['......h', '.....#.', '...oo..', '..####.', '.#h####', '.#h####', '.######', '..####.'],
+  ['.....h.', '.....#h', '...oo..', '..####.', '.#h####', '.#h####', '.######', '..####.']
+];
+const BOOM = [
+  ['.........', '.........', '....h....', '...hhh...', '..hh#hh..', '...hhh...', '....h....', '.........', '.........'],
+  ['....#....', '.#..h..#.', '..#.h.#..', '...hhh...', '#hhh#hhh#', '...hhh...', '..#.h.#..', '.#..h..#.', '....#....'],
+  ['#...#...#', '.........', '..h...h..', '.........', 'h.......h', '.........', '..h...h..', '.........', '#...#...#']
+];
+// 16×16 모습을 8×8로 (2×2칸마다: 진한 칸 2개 이상 → 진하게, 칠한 칸 2개 이상 → 중간색)
+const MINI = {};
+function miniOf(key) {
+  if (MINI[key]) return MINI[key];
+  const g = spriteOf(key), out = [];
+  for (let Y = 0; Y < 8; Y++) { let r = ''; for (let X = 0; X < 8; X++) {
+    const b = [g[2 * Y][2 * X], g[2 * Y][2 * X + 1], g[2 * Y + 1][2 * X], g[2 * Y + 1][2 * X + 1]], h = b.filter(c => c === '#').length, o = b.filter(c => c === 'o').length;
+    r += h >= 2 ? '#' : h + o >= 2 ? 'o' : h === 1 ? '#' : '.'; } out.push(r); }
+  return MINI[key] = out;
+}
+function drawDodge(t, tr, p, st, at) {
+  // 줄 경계선: 떨어지는 속도에 맞춰 흐르는 점선
+  const off = Math.floor(C.dodgeDist(p, at)) % 3;
+  for (let y = 0; y < H; y++) if ((y + 3 - off) % 3 !== 0) [0, 13, 26, 39].forEach(x => px(x, y, 1));
+  // 폭탄 (부딪힌 폭탄은 터지는 그림으로 바뀜)
+  const bf = BOMB[Math.floor(t / 140) % 2];
+  for (let i = 0; i < p.maxOk + 2; i++) {
+    const y = C.dodgeWaveY(p, i, at); if (y + p.bombH - 1 < 0) break; if (y >= H) continue;
+    tr.plan[i].forEach(l => { if (tr.done && st.over === 'hit' && i === st.hitWave && l === st.lane) return; spr(bf, D_LANE_X[l] + D_BX, y, false); });
+  }
+  // 몽글이 (옮긴 직전 줄에 잔상 점), 부딪히면 깜빡 + 펑
+  if (t - tr.movedAt < 90) { const fx = D_LANE_X[tr.from] + 2; px(fx + 2, D_PET_Y + 4, 1); px(fx + 5, D_PET_Y + 4, 1); }
+  const since = tr.done ? Math.max(0, t - tr.doneAt) : 0;
+  if (!(tr.done && st.over === 'hit' && Math.floor(since / 120) % 2)) spr(miniOf(lookOf(pet)), D_LANE_X[st.lane] + 2, D_PET_Y, false);
+  if (tr.done && st.over === 'hit' && since < 390) spr(BOOM[Math.floor(since / 130)], D_LANE_X[st.lane] + 2, D_PET_Y - 1, false);
+  // 준비 중: 세 줄 위쪽 가운데 깜빡
+  if (at < p.ready && Math.floor(t / 200) % 2) D_LANE_X.forEach(x => { px(x + 5, 1, 2); px(x + 6, 1, 2); });
+}
+
+// ---------- 방어 훈련 (조준점 막기) ----------
+// 몽글이를 액정(400×200)에 꽉 차게 키워 그림. 막을 곳 5군데: 몸 크기 직사각형 네 꼭짓점(안쪽 3칸) + 정가운데
+const G_R = 3.6, G_INSET = 3, GUARD_LAYOUT = {};
+function guardLayout(key) {
+  if (GUARD_LAYOUT[key]) return GUARD_LAYOUT[key];
+  const g = spriteOf(key); let x0 = 16, x1 = -1, y0 = 16, y1 = -1;
+  g.forEach((r, y) => [...r].forEach((c, x) => { if (c !== '.') { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); } }));
+  const w = x1 - x0 + 1, h = y1 - y0 + 1, S = Math.floor(Math.min(196 / (h + 2), 396 / (w + 2)));
+  const L = x0 + G_INSET, R = x1 + 1 - G_INSET, T = y0 + G_INSET, B = y1 + 1 - G_INSET;
+  return GUARD_LAYOUT[key] = { g, x0, y0, w, h, S, OX: Math.floor((400 - w * S) / 2), OY: Math.floor((200 - h * S) / 2),
+    spots: [[L, T], [R, T], [L, B], [R, B], [x0 + w / 2, y0 + h / 2]] };
+}
+function guardTap(e, tr, st, at) {
+  const Lo = guardLayout(lookOf(pet)), r = cv.getBoundingClientRect();
+  const gx = Lo.x0 + ((e.clientX - r.left) / r.width * 400 - Lo.OX) / Lo.S, gy = Lo.y0 + ((e.clientY - r.top) / r.height * 200 - Lo.OY) / Lo.S;
+  const spot = tr.plan[st.ok].spot, [sx, sy] = Lo.spots[spot], hit = Math.hypot(gx - sx, gy - sy) <= G_R;
+  if (hit) tr.hits.push({ at: performance.now(), x: sx, y: sy });
+  return { t: Math.round(at), v: hit ? spot : -1 };
+}
+function drawGuard(t, tr, p, st, at) {
+  const now = performance.now();
+  const Lo = guardLayout(lookOf(pet)), S = Lo.S, cs = getComputedStyle(document.documentElement), col = k => cs.getPropertyValue(k).trim();
+  const K = { bg: col('--lcd'), gh: col('--lcd-ghost'), mid: col('--lcd-mid'), on: col('--lcd-on'), hi: col('--lcd-hi') || '#C8D4AA' };
+  const dot = (x, y, c) => { ctx.fillStyle = c; ctx.fillRect(Lo.OX + (x - Lo.x0) * S, Lo.OY + (y - Lo.y0) * S, S - 1, S - 1); };
+  ctx.fillStyle = K.bg; ctx.fillRect(0, 0, 400, 200);
+  for (let y = -1; y * S < 200; y++) for (let x = -1; x * S < 400; x++) { ctx.fillStyle = K.gh; ctx.fillRect(Lo.OX % S + x * S, Lo.OY % S + y * S, S - 1, S - 1); }
+  Lo.g.forEach((r, y) => [...r].forEach((c, x) => { if (c !== '.') dot(x, y, c === '#' ? K.on : K.mid); }));
+  // 막은 자리: 방패가 잠깐 번쩍
+  const last = tr.hits[tr.hits.length - 1];
+  if (last && now - last.at < 260) ['.###.', '#hhh#', '#hhh#', '.#h#.', '..#..'].forEach((r, y) => [...r].forEach((c, x) => { if (c !== '.') dot(Math.floor(last.x) - 2 + x, Math.floor(last.y) - 2 + y, c === 'h' ? K.hi : K.on); }));
+  // 조준점 + 남은 시간 막대 (3연속이면 옆에 점 3개)
+  if (!tr.done && at >= st.appear && st.ok < p.maxOk) {
+    const w = C.shrinkWindow(p, st.ok), left = 1 - (at - st.appear) / w, plan = tr.plan[st.ok], [sx, sy] = Lo.spots[plan.spot];
+    const cx = Lo.OX + (sx - Lo.x0) * S, cy = Lo.OY + (sy - Lo.y0) * S;
+    if (!(left < 0.3 && Math.floor(t / 80) % 2)) {
+      const r = S * 2.4, a = S, b = S * 3.6, shape = () => { ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => { ctx.moveTo(cx + dx * a, cy + dy * a); ctx.lineTo(cx + dx * b, cy + dy * b); }); };
+      ctx.lineCap = 'square'; ctx.strokeStyle = K.on; ctx.lineWidth = 9; shape(); ctx.stroke(); ctx.strokeStyle = K.hi; ctx.lineWidth = 4; shape(); ctx.stroke();
+      ctx.fillStyle = K.on; ctx.fillRect(cx - 5, cy - 5, 10, 10); ctx.fillStyle = K.hi; ctx.fillRect(cx - 3, cy - 3, 6, 6);
+    }
+    if (plan.step) for (let k = 0; k < 3; k++) { const x = cx + S * 4.3, y = cy - S * 1.6 + k * S * 1.6; ctx.fillStyle = K.on; ctx.fillRect(x - 8, y - 8, 16, 16); ctx.fillStyle = k < plan.step ? K.hi : K.mid; ctx.fillRect(x - 5, y - 5, 10, 10); }
+    ctx.fillStyle = K.on; ctx.fillRect(4, 3, Math.max(0, 392 * left), 5);
+  }
+  if (at < p.ready && Math.floor(t / 200) % 2) { ctx.fillStyle = K.on; ctx.fillRect(4, 3, 392, 5); }
+  if (tr.done && tr.final.over !== 'max' && now - tr.doneAt < 300 && Math.floor((now - tr.doneAt) / 100) % 2 === 0) { ctx.fillStyle = 'rgba(36,48,32,.55)'; ctx.fillRect(0, 0, 400, 200); }
+}
+
+// ---------- 공격 훈련 (묵찌빠) ----------
+// 오른쪽 상대 손을 보고 이기는 손(까만 말풍선이면 지는 손)을 냄. 맞히면 내 손이 날아가 상대 손을 때림
+function drawRps(t, tr, p, st, at) {
+  const now = performance.now(), fx = tr.fx, since = fx ? now - fx.at : 1e9;
+  spr(spriteOf(lookOf(pet)), 2 + (fx && fx.good && since < 160 ? 1 : 0), 3, false);
+  const showing = !tr.done && at >= st.appear && st.ok < p.maxOk, q = tr.plan[Math.min(st.ok, p.maxOk - 1)];
+  const opHand = showing ? q.op : fx && since < 350 ? fx.op : null;
+  if (opHand) {
+    const hit = fx && since < 350 && !showing, shake = hit && fx.good ? (Math.floor(since / 50) % 2 ? 1 : -1) : 0;
+    if (!(hit && fx.good && Math.floor(since / 70) % 2)) spr(HANDS_BIG[opHand], 25 + shake, 4, true);
+  }
+  if (fx && since < 350) {
+    const x = Math.round(17 + 8 * Math.min(1, since / 120)), g = HANDS[fx.mine];
+    g.forEach((r, y) => [...r].forEach((c, xx) => { if (c === '#') px(x + 2 + xx, 6 + y, 2); else if (c === 'o') px(x + 2 + xx, 6 + y, 3); }));
+    if (fx.good && since > 120 && since < 260) [[23, 3], [37, 3], [23, 16], [37, 16]].forEach(([a, b]) => px(a, b, 3));
+  }
+  if (showing) { const left = 1 - (at - st.appear) / C.shrinkWindow(p, st.ok); for (let x = 0; x < Math.round(40 * left); x++) px(x, 0, 2); }
+  if (at < p.ready && Math.floor(t / 200) % 2) for (let x = 0; x < 40; x++) px(x, 0, 2);
+  const ask = $('ask'); ask.hidden = !showing;
+  if (showing) { ask.className = 'ask ' + (q.lose ? 'lose' : 'win'); ask.textContent = q.lose ? '지는 손!' : '이기는 손!'; }
+}
+
+// ---------- 훈련 게임 공통 ----------
+// run: 규칙(core), plan: 씨앗으로 만든 순서, draw: 그리기, pads: 이 게임에서 보일 버튼, result: 결과 두 줄, boom: 결과 전 기다림(ms)
+const GAMES = {
+  rope:  { run: C.ropeRun,  draw: drawRope,  pads: 'bStop', result: ['성공', '체력'], boom: 0, label: n => `성공 ${n}` },
+  dodge: { run: C.dodgeRun, draw: drawDodge, pads: 'dPads', result: ['피한 수', '속도'], boom: 400, plan: C.dodgeWaves, label: n => `피함 ${n}` },
+  guard: { run: C.guardRun, draw: drawGuard, pads: null,    result: ['방어 성공', '방어력'], boom: 300, plan: C.guardPlan, label: n => `방어 ${n}`, direct: true },
+  rps:   { run: C.rpsRun,   draw: drawRps,   pads: 'rpsPad', result: ['공격 성공', '공격력'], boom: 450, plan: C.rpsPlan, label: n => `공격 ${n}` }
+};
+const trainAt = tr => tr.done ? tr.final.endAt : performance.now() - tr.t0;
+const trainState = tr => tr.done ? tr.final : GAMES[tr.params.game].run(tr.params, tr.taps, trainAt(tr), tr.plan);
+// 입력 하나를 기록하고 끝났으면 마무리
+function trainInput(make) {
+  const tr = train; if (!tr || tr.done) return;
+  const at = performance.now() - tr.t0, st = trainState(tr);
+  if (st.over || at < (st.appear != null ? st.appear : tr.params.ready)) return;   // 준비 중·문제가 뜨기 전은 무시
+  const tap = make(tr, st, at); if (tap == null) return;
+  tr.taps.push(tap);
+  const after = GAMES[tr.params.game].run(tr.params, tr.taps, at, tr.plan);
+  if (after.ok > st.ok) tr.flash = tr.rope = performance.now();
+  if (after.over) finishGame(after);
+}
+function drawTraining(t) {
+  const tr = train, G = GAMES[tr.params.game], st = trainState(tr);
+  if (!tr.done && st.over) finishGame(st);
+  G.draw(t, tr, tr.params, st, trainAt(tr));
+  if (G.label) $('lcdR').textContent = G.label(st.ok);
+  // 끝나는 순간 화면 깜빡 (다 성공한 경우 빼고)
+  return tr.done && tr.final.over !== 'max' && t - tr.doneAt < 450 && Math.floor((t - tr.doneAt) / 150) % 2 === 0;
+}
+
 function frame(t) {
   fb.fill(0); let inv = false;
   if (!pet) spr(S.egg, 12, 2, false);
   else if (evo && t < evo.until) { const ph = Math.floor(t / 150) % 2; spr(spriteOf(ph ? evo.to : evo.from), 12, 2, false); inv = ph === 1; }
   else if (mode === 'train' && train) {
-    spr(spriteOf(lookOf(pet)), 12, 0, false);
-    const x0 = 2, len = C.BAR, p = train.params;
-    for (let i = 0; i < len; i++) { px(x0 + i, 17, 1); px(x0 + i, 19, 1); }
-    rect(x0 + p.z0, 17, p.zw, 3, 1); rect(x0 + p.zc - 1, 17, 3, 3, 2);
-    const m = Math.round(C.markerPos(p, performance.now() - train.t0)); rect(x0 + m, 16, 1, 4, 2);
+    inv = drawTraining(t);
+    if (GAMES[train.params.game].direct) { requestAnimationFrame(frame); return; }   // 방어는 캔버스에 직접 크게 그림
   }
   else if (mode === 'battle' && battle) {
     const b = battle, fx = b.fx && t < b.fx.at + HIT.end ? b.fx : null;
@@ -269,7 +478,13 @@ function frame(t) {
     }
     hpBar(2, b.mh, b.me.hp); hpBar(22, b.oh, b.op.hp);
   }
-  else if (eat && pet.stage !== 'egg' && t - eat.t0 < EAT.total) drawEat(t - eat.t0);   // 밥 먹는 중 (똥은 잠깐 가림)
+  else if (eat && eat.refuse && pet.stage !== 'egg' && t - eat.t0 < REFUSE.total) drawRefuse(t - eat.t0);   // 배불러서 거절
+  else if (eat && !eat.refuse && pet.stage !== 'egg' && t - eat.t0 < EAT.total) drawEat(t - eat.t0);   // 밥 먹는 중 (똥은 잠깐 가림)
+  else if (pet.stage === 'egg' && warming) {
+    const w = Math.floor(t / 120) % 4; spr(S.egg, 12 + (w === 1 ? 1 : w === 3 ? -1 : 0), 2, false);
+    // 따뜻한 김: 알 양옆에서 올라가는 점
+    const k = Math.floor(t / 150) % 4; [[9, 12 - k * 2], [30, 13 - k * 2], [8, 6 - k], [31, 7 - k]].forEach(([x, y]) => px(x, y, 3));
+  }
   else if (pet.stage === 'egg') { const w = Math.floor(t / 500) % 4; spr(S.egg, 12 + (w === 1 ? 1 : w === 3 ? -1 : 0), 2, false); }
   else {
     if (t - lastStep > 700) { lastStep = t; const d = Math.random() < .5 ? -1 : 1; wx = C.clamp(wx + d, 1, 14); facing = d; }
@@ -293,17 +508,28 @@ function render() {
   $('sForm').textContent = v.stage === 'egg' ? '알 · 부화까지 품어 주세요'
     : kindText(v);
   renderTendency(v);
-  $('sStage').textContent = C.STAGE_KO[v.stage]; $('sLv').textContent = v.level;
-  const maxed = v.level >= C.RULES.maxLevel;
-  meter('mXp', 'nXp', maxed ? 1 : v.exp, maxed ? 1 : C.need(v.level), 'xp'); if (maxed) $('nXp').textContent = 'MAX';
-  meter('mHun', 'nHun', v.hunger, 100); meter('mMood', 'nMood', v.mood, 100); meter('mEn', 'nEn', v.energy, 100);
-  const nextL = v.stage === 'egg' ? 10 : v.stage === 'baby' ? 30 : v.stage === 'rookie' ? 50 : null;
+  $('sStage').textContent = C.STAGE_KO[v.stage];
+  // 성장(다음 진화까지)과 건강도
+  const needG = C.RULES.grow[v.stage], nowMs = serverNow();
+  if (needG) { const pctG = Math.floor(100 * Math.min(1, v.grow / needG)); $('mGrow').style.width = pctG + '%'; $('mGrow').className = 'xp'; $('nGrow').textContent = pctG + '%'; }
+  else { $('mGrow').style.width = '100%'; $('nGrow').textContent = '완료'; }
+  const hv = C.health(v), showH = v.stage !== 'egg' && v.stage !== 'adult';
+  ['lHealth', 'bHealth', 'nHealth'].forEach(id => $(id).hidden = !showH);
+  if (showH) meter('mHealth', 'nHealth', hv, 100, hv < C.RULES.healthHalf ? 'bad' : hv < C.RULES.healthFull ? 'warn' : '');
+  meter('mHun', 'nHun', v.hunger, 100); meter('mMood', 'nMood', v.mood, 100); meter('mEn', 'nEn', v.energy, C.RULES.maxEnergy);
+  const left = C.evoLeft(v, nowMs), rate = C.growRate(v, nowMs);
+  const dur = sec => { sec = Math.ceil(sec); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s2 = sec % 60; return h ? `${h}시간 ${m}분` : m ? `${m}분 ${s2}초` : `${s2}초`; };
+  const nextName = { egg: '부화', baby: '아성체 진화', rookie: '성체 진화' }[v.stage];
   const onArena = isOnArena(v);
-  $('sNext').textContent = nextL ? `Lv.${nextL}에 다음 단계로 진화해요.`
+  $('sNext').textContent = v.stage === 'egg' ? `부화까지 약 ${dur(left)}.` + (rate > 1 ? ' 품는 중이라 3배로 흘러요!' : ' 품기를 누르고 있으면 3배로 빨라져요.')
+    : nextName ? (left === null ? `건강도가 ${C.RULES.healthHalf}% 밑이라 성장이 멈췄어요. 밥·놀기·청소로 돌봐 주세요.`
+      : `${nextName}까지 약 ${dur(left)}` + (rate < 1 ? ` (건강도가 ${C.RULES.healthFull}% 밑이라 0.5배속)` : '') + '.')
     : onArena ? '결투장에 올라갔어요. 이제 새 알을 받아 다음 몽글이를 키워 보세요.'
     : '다 자랐어요! 더 이상 자라지 않아요. 결투장 탭에서 등록해 랭킹에 도전하세요.';
+  $('statCard').hidden = v.stage === 'egg';   // 알은 아직 능력치가 없음 (부화할 때 생김)
   $('vHp').textContent = bs.hp; $('vAtk').textContent = bs.atk; $('vDef').textContent = bs.def; $('vSpd').textContent = bs.spd;
-  const egg = v.stage === 'egg', adult = v.stage === 'adult', lock = busy || mode !== 'idle';
+  // 밥 먹는 연출·훈련·통신 중에는 다른 버튼을 막음 (한 번에 하나씩)
+  const egg = v.stage === 'egg', adult = v.stage === 'adult', lock = busy || mode !== 'idle' || eating();
   // 성체는 더 돌보거나 키울 수 없음
   $('bFeed').disabled = egg || adult || lock; $('bPlay').disabled = egg || adult || lock; $('bClean').disabled = egg || adult || lock || v.poops === 0;
   $('bMainLbl').textContent = egg ? '품기' : '훈련'; $('bMain').disabled = adult || lock;
@@ -321,7 +547,9 @@ function render() {
   if (!adult) { $('resetConfirm').hidden = true; $('bReset').hidden = false; }
   $('fastCard').hidden = !allowFast;
   $('bFast').textContent = v.fast ? '끄기' : '켜기'; $('bFast').setAttribute('aria-pressed', !!v.fast); $('bFast').className = v.fast ? 'btn primary' : 'btn'; $('bFast').disabled = lock;
-  $('lcdL').textContent = `${v.name} Lv.${v.level}`;
+  $('lcdL').textContent = v.name;
+  // 화면에서 흘려 본 시간으로 진화할 때가 됐으면 서버에 바로 물어봄 (서버가 진화시키고 장면을 보냄)
+  if (v.stage !== pet.stage && mode === 'idle' && !busy && Date.now() - lastSync > 3000) { lastSync = Date.now(); loadMe().catch(() => {}); }
   $('lcdR').textContent = egg ? '부화 대기' : `${v.stage === 'adult' ? kindText(v) : C.STAGE_KO[v.stage]}${v.poops ? ' · 똥' + v.poops : ''}`;
   renderArena(v);
 }
@@ -364,7 +592,7 @@ function renderArena(v) {
   $('bReg').disabled = lock;
   $('bReg').textContent = full ? `${v.name}(으)로 교체 등록` : `${v.name}을(를) 결투장에 등록`;
   const f = fighter();
-  $('regInfo').textContent = !mine.length && !adult ? `지금 키우는 ${v.name}이(가) 성체(Lv.50)가 되면 등록할 수 있어요.`
+  $('regInfo').textContent = !mine.length && !adult ? `지금 키우는 ${v.name}이(가) 성체가 되면 등록할 수 있어요.`
     : !mine.length ? '다 자란 몽글이를 결투장에 올려 랭킹에 도전하세요.'
     : canReg && full ? `${v.name}이(가) 다 자랐어요. 자리가 꽉 차서, 등록하려면 한 마리를 내려야 해요.`
     : canReg ? `${v.name}이(가) 다 자랐어요. 한 자리가 비어 있어요.`
@@ -396,7 +624,7 @@ function entryRow(o, v, opt) {
   const f = fighter();
   if (opt.challenge && f && o.type) { const m = C.typeMult(f.type, o.type); if (m > 1) tag('상성 유리', 'adv'); else if (m < 1) tag('상성 불리', 'dis'); }
   const sub = document.createElement('div'); sub.className = 'sub';
-  sub.textContent = `${kindText(o)} · Lv.${o.level}` + (opt.self ? ` · ${o.wins}승 ${o.losses}패` : ` · ${o.trainer} · ${o.wins}승 ${o.losses}패`);
+  sub.textContent = kindText(o) + (opt.self ? ` · ${o.wins}승 ${o.losses}패` : ` · ${o.trainer} · ${o.wins}승 ${o.losses}패`);
   const st = document.createElement('div'); st.className = 'st'; st.textContent = `체력 ${o.hp} · 공격력 ${o.atk} · 방어력 ${o.def} · 속도 ${o.spd}`;
   meta.append(nm, sub, st);
   if (opt.self) {
@@ -429,7 +657,7 @@ let sayT;
 function say(m) { if (!m) return; const t = $('say'); t.textContent = m; t.classList.add('on'); clearTimeout(sayT); sayT = setTimeout(() => t.classList.remove('on'), 2200); }
 const doAction = type => run(async () => {
   const d = await api('/action', { type }); apply(d); say(d.msg);
-  if (type === 'feed') { eat = { t0: performance.now() }; wx = 6; facing = 1; }   // 고기 먹는 연출
+  if (type === 'feed') { const refuse = !!d.refuse; eat = { t0: performance.now(), refuse }; wx = 6; facing = 1; render(); setTimeout(render, (refuse ? REFUSE.total : EAT.total) + 30); }   // 고기 먹기 / 배부르면 거절 (끝나면 버튼 다시 켬)
 }, say);
 $('bFeed').onclick = () => doAction('feed');
 $('bPlay').onclick = () => doAction('play');
@@ -451,9 +679,29 @@ function openTrainPop() {
   render();
   const first = pop.querySelector('button:not(:disabled)'); if (first) first.focus({ preventScroll: true });
 }
+// 알 품기: 누르고 있는 동안 서버에 '품는 중'을 알림 (1분마다 연장), 떼면 끝
+let warmT = null;
+function warmOn() {
+  if (!pet || pet.stage !== 'egg' || warming || $('bMain').disabled) return;
+  warming = true; say('따뜻하게 품는 중… 3배!');
+  const send = () => api('/warm', { on: true }).then(apply).catch(e => { say(e.message); warmOff(); });
+  send(); warmT = setInterval(send, 60000);
+}
+function warmOff() {
+  if (!warming) return;
+  warming = false; clearInterval(warmT); warmT = null;
+  $('say').classList.remove('on');
+  api('/warm', { on: false }).then(apply).catch(() => {});
+}
+$('bMain').addEventListener('pointerdown', e => { if (pet && pet.stage === 'egg') { e.preventDefault(); warmOn(); } });
+['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => $('bMain').addEventListener(ev, warmOff));
+$('bMain').addEventListener('keydown', e => { if (pet && pet.stage === 'egg' && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); if (!e.repeat) warmOn(); } });
+$('bMain').addEventListener('keyup', e => { if (e.key === ' ' || e.key === 'Enter') warmOff(); });
+window.addEventListener('blur', warmOff);
+$('bMain').addEventListener('contextmenu', e => { if (pet && pet.stage === 'egg') e.preventDefault(); });
 $('bMain').onclick = e => {
   e.stopPropagation();
-  if (pet.stage === 'egg') return doAction('warm');
+  if (pet.stage === 'egg') return;
   if ($('trainPop').hidden) openTrainPop(); else closeTrainPop();
 };
 document.addEventListener('click', e => { if (!$('trainPop').hidden && !$('trainPop').contains(e.target)) closeTrainPop(); });
@@ -466,28 +714,78 @@ $('bResetNo').onclick = () => { $('resetConfirm').hidden = true; $('bReset').hid
 $('bResetYes').onclick = () => { $('resetConfirm').hidden = true; $('bReset').hidden = false; pet = null; $('nameIn').value = ''; show(); };
 
 // ---------- 훈련 ----------
+const PADS = ['bStop', 'dPads', 'rpsPad'];
 document.querySelectorAll('[data-train]').forEach(b => b.onclick = () => run(async () => {
   closeTrainPop();
   const d = await api('/train/start', { kind: b.dataset.train });
   apply(d);
-  train = { params: d.train.params, t0: performance.now() };
-  mode = 'train'; $('pad').hidden = true; $('bStop').hidden = false; renderTendency(pet);
-  window.scrollTo({ top: 0, behavior: 'smooth' }); $('bStop').focus({ preventScroll: true });
+  const p = d.train.params, G = GAMES[p.game];
+  train = { params: p, t0: performance.now(), taps: [], plan: G.plan ? G.plan(p) : null, rope: -1e9, flash: 0, from: 1, movedAt: -1e9, hits: [], fx: null };
+  mode = 'train'; $('pad').hidden = true;
+  PADS.forEach(id => $(id).hidden = id !== G.pads);
+  $('bStop').textContent = '터치!';
+  document.querySelectorAll('#bStop, #dPads button, #rpsPad button').forEach(x => x.disabled = false);
+  document.body.classList.add('gaming');   // 게임 중 스크롤·확대 막기
+  renderTendency(pet);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }));
-let stopping = false;
-async function stopTrain() {
-  if (mode !== 'train' || !train || stopping) return;
-  stopping = true;
-  const elapsed = performance.now() - train.t0;
-  train.frozen = true;
-  try { const d = await api('/train/stop', { elapsed }); apply(d); toast(d.msg); }
-  catch (e) { toast(e.message); }
-  train = null; mode = 'idle'; stopping = false;
-  $('bStop').hidden = true; $('pad').hidden = false; render();
+// 끝나면: 서버에 입력을 한 번 보내고, 화면 가운데 두 줄 결과 2초 → 대기 화면
+async function finishGame(st) {
+  const tr = train; if (!tr || tr.done) return;
+  const G = GAMES[tr.params.game], shownAt = performance.now();
+  tr.done = true; tr.final = st; tr.doneAt = shownAt;
+  $('bStop').textContent = '훈련 끝!'; document.querySelectorAll('#bStop, #dPads button, #rpsPad button').forEach(x => x.disabled = true); $('ask').hidden = true;
+  let ok = Math.min(C.TRAIN_MAX, st.ok), err = null, d = null;
+  try { d = await api('/train/stop', { taps: tr.taps }); ok = d.ok; } catch (e) { err = e.message; }
+  setTimeout(() => {
+    const [a, b] = G.result;
+    $('resA').textContent = `${a} ${ok}번`; $('resB').textContent = `${b} +${ok}`; $('result').hidden = false;
+    setTimeout(() => {
+      $('result').hidden = true;
+      train = null; mode = 'idle';
+      PADS.forEach(id => $(id).hidden = true); $('pad').hidden = false;
+      document.body.classList.remove('gaming');
+      if (d) apply(d); else render();
+      if (err) toast(err);
+    }, 2000);
+  }, Math.max(0, G.boom - (performance.now() - shownAt)));
 }
-$('bStop').onclick = stopTrain;
-cv.addEventListener('click', () => { if (mode === 'train') stopTrain(); });
-document.addEventListener('keydown', e => { if (mode === 'train' && (e.code === 'Space' || e.code === 'Enter')) { e.preventDefault(); stopTrain(); } });
+// 입력 → 게임별 기록
+const ropeTap = () => trainInput((tr, st, at) => Math.round(at));
+function dodgeMove(dir) {
+  trainInput((tr, st, at) => {
+    if (st.lane + dir < 0 || st.lane + dir > 2) return null;
+    tr.from = st.lane; tr.movedAt = performance.now();
+    return { t: Math.round(at), d: dir };
+  });
+}
+function rpsPlay(h) {
+  trainInput((tr, st, at) => {
+    const q = tr.plan[st.ok];
+    tr.fx = { at: performance.now(), mine: h, op: q.op, good: h === C.rpsAnswer(q) };
+    return { t: Math.round(at), v: h };
+  });
+}
+const gameOn = g => mode === 'train' && train && train.params.game === g;
+// 체력: 화면 어디든 / 속도: 화면 왼쪽 반·오른쪽 반 / 방어: 조준점을 직접 / 공격: 묵·찌·빠 버튼
+document.addEventListener('pointerdown', e => {
+  if (e.button > 0 || !train || mode !== 'train') return;
+  if (gameOn('rope')) { e.preventDefault(); ropeTap(); }
+  else if (gameOn('dodge')) { e.preventDefault(); dodgeMove(e.clientX < window.innerWidth / 2 ? -1 : 1); }
+  else if (gameOn('guard')) { e.preventDefault(); trainInput((tr, st, at) => guardTap(e, tr, st, at)); }
+}, { passive: false });
+document.querySelectorAll('#rpsPad [data-h]').forEach(b => b.addEventListener('pointerdown', e => { e.preventDefault(); rpsPlay(b.dataset.h); }));
+document.addEventListener('keydown', e => {
+  if (mode !== 'train' || !train) return;
+  if (gameOn('dodge') && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) { e.preventDefault(); dodgeMove(e.key === 'ArrowLeft' ? -1 : 1); }
+  else if (gameOn('rope') && (e.code === 'Space' || e.code === 'Enter')) { e.preventDefault(); if (!e.repeat) ropeTap(); }
+  else if (gameOn('rps') && { 1: 1, 2: 1, 3: 1 }[e.key]) { e.preventDefault(); rpsPlay(C.TYPE_ORDER[e.key - 1]); }
+});
+// 묵·찌·빠 버튼 아이콘 (작은 손 도트)
+document.querySelectorAll('#rpsPad [data-h]').forEach(b => {
+  const c = b.querySelector('canvas'), x = c.getContext('2d'), g = HANDS[b.dataset.h], ox = Math.floor((12 - g[0].length) / 2), oy = Math.floor((12 - g.length) / 2);
+  g.forEach((r, y) => [...r].forEach((ch, xx) => { if (ch !== '.') { x.fillStyle = ch === '#' ? '#3A1606' : '#F4C9A8'; x.fillRect(ox + xx, oy + y, 1, 1); } }));
+});
 
 // ---------- 결투장 ----------
 async function loadArena() { try { const d = await api('/arena'); arena = d.list; refreshPicks(false); renderArena(); } catch (e) { toast(e.message); } }

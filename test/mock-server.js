@@ -2,6 +2,8 @@
 // 실제 배포에는 쓰지 않습니다. 데이터는 이 기기(localStorage)에만 저장됩니다.
 (function () {
   const C = window.Core;
+  // 빠른 성장(테스트 모드): 테스트 페이지 주소 끝에 #fast 를 붙여 열 때만 보임
+  const ALLOW_FAST = location.hash === '#fast';
   const K = 'mongle-test-server-v1';
   let st = null;
   try { st = JSON.parse(localStorage.getItem(K)); } catch (e) {}
@@ -26,7 +28,7 @@
   }
   const token = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
   const findNick = nick => Object.values(st.users).find(u => u.nick.toLowerCase() === nick.toLowerCase());
-  function loadPet(uid) { const p = st.pets[uid]; if (!p) return null; const pet = JSON.parse(JSON.stringify(p)); C.advance(pet, Date.now()); return pet; }
+  function loadPet(uid) { const p = st.pets[uid]; if (!p) return null; const pet = JSON.parse(JSON.stringify(p)); if (!ALLOW_FAST) pet.fast = false; C.advance(pet, Date.now()); return pet; }
   function savePet(uid, pet) { st.pets[uid] = pet; save(); }
   // server.js의 rankedArena / myEntries와 같은 동작
   function rankedArena(viewer) {
@@ -42,11 +44,8 @@
     const list = rankedArena(uid);
     return list.filter(e => e.uid === uid).sort((a, b) => a.registeredAt - b.registeredAt).map(e => Object.assign({}, e, { total: list.length }));
   }
-  const publicEntry = e => { const o = Object.assign({}, e); ['uid', 'born', 'energy', 'energyAt', 'energyNow', 'tv'].forEach(k => delete o[k]); return o; };
-  function payload(uid, pet, extra) { return Object.assign({ now: Date.now(), pet, allowFast: true, mine: myEntries(uid), maxEntries: C.RULES.maxEntries }, extra || {}); }
+  function payload(uid, pet, extra) { return Object.assign({ now: Date.now(), pet, allowFast: ALLOW_FAST, mine: myEntries(uid), maxEntries: C.RULES.maxEntries }, extra || {}); }
   const myRows = uid => Object.entries(st.entries).filter(([, r]) => r.user === uid).map(([id, r]) => Object.assign({ id: Number(id) }, r)).sort((a, b) => a.created - b.created);
-  const entryFromPet = (pet, now) => Object.assign({ name: pet.name, form: pet.form, look: pet.look, type: pet.type, style: pet.style, level: pet.level,
-    usedFast: !!pet.usedFast, born: pet.born, energy: C.RULES.arenaMax, tv: 2 }, C.bstats(pet));
 
   async function handle(path, method, body, authz) {
     // 계정
@@ -68,24 +67,30 @@
     if (path === '/logout') { delete st.sessions[m[1]]; save(); return res(200, { ok: true }); }
     if (path === '/me') { const pet = loadPet(uid); if (pet) savePet(uid, pet); return res(200, payload(uid, pet, { nick: st.users[uid].nick })); }
     if (path === '/arena') {
-      const list = rankedArena(uid).map(publicEntry);
+      const list = rankedArena(uid).map(C.publicEntry);
       return res(200, { now: Date.now(), list });
     }
     // 연타 제한 (train/stop 제외)
-    if (method === 'POST' && path !== '/train/stop') {
+    if (method === 'POST' && !['/train/stop', '/warm', '/seen'].includes(path)) {
       const now = Date.now(); if (now - (lastHit[uid] || 0) < 250) return fail(429, '조금 천천히 눌러 주세요.'); lastHit[uid] = now;
     }
     if (path === '/pet') {
       const name = String(body.name || '').trim().slice(0, 10) || '몽이';
       const pet = C.newPet(name, Date.now()); savePet(uid, pet); delete trains[uid]; save();   // 결투장 몽글이는 그대로
-      return res(200, payload(uid, pet, { msg: '알을 받았어요. 품기 버튼을 눌러 주세요.' }));
+      return res(200, payload(uid, pet, { msg: '알을 받았어요. 1시간 뒤 부화해요. 품기를 누르고 있으면 3배 빨라져요.' }));
     }
     const pet = loadPet(uid);
     if (!pet) return fail(404, '먼저 알을 받아 주세요.');
+    if (path === '/warm') {
+      const r = C.warm(pet, !!body.on, Date.now()); if (!r.ok) return fail(400, r.msg);
+      savePet(uid, pet); return res(200, payload(uid, pet, { msg: r.msg }));
+    }
+    if (path === '/seen') { pet.evoUnseen = null; savePet(uid, pet); return res(200, payload(uid, pet, {})); }
     if (path === '/action') {
+      if (body.type === 'fast' && !ALLOW_FAST) return fail(403, '이 서버에서는 빠른 성장을 쓸 수 없어요.');
       if (trains[uid]) return fail(409, '훈련 중이에요.');
       const r = C.applyAction(pet, String(body.type || '')); savePet(uid, pet);
-      return res(200, payload(uid, pet, { ok: r.ok, msg: r.msg, info: r.info }));
+      return res(200, payload(uid, pet, { ok: r.ok, msg: r.msg, info: r.info, refuse: !!r.refuse }));
     }
     if (path === '/train/start') {
       const kind = String(body.kind || '');
@@ -93,19 +98,17 @@
       if (pet.stage === 'egg') return fail(400, '알은 훈련할 수 없어요.');
       if (pet.stage === 'adult') return fail(400, '다 자란 몽글이는 더 훈련할 수 없어요.');
       if (pet.energy < C.RULES.trainCost) return fail(400, '에너지가 부족해요.');
-      const params = C.trainParams(pet); trains[uid] = { kind, params, start: Date.now() }; savePet(uid, pet);
+      const params = C.trainParams(pet, null, kind); trains[uid] = { kind, params, start: Date.now() }; savePet(uid, pet);
       return res(200, payload(uid, pet, { train: { kind, params } }));
     }
     if (path === '/train/stop') {
       const t = trains[uid]; if (!t) return fail(409, '진행 중인 훈련이 없어요.'); delete trains[uid];
-      const serverElapsed = Date.now() - t.start, ce = Number(body.elapsed), gap = serverElapsed - ce;
-      const used = Number.isFinite(ce) && gap >= 0 && gap <= 2000 ? ce : serverElapsed;
-      const result = serverElapsed > 60000 ? 'fail' : C.judge(t.params, used);
-      const r = C.applyTrain(pet, t.kind, result); savePet(uid, pet);
-      return res(200, payload(uid, pet, { result, msg: r.msg, info: r.info }));
+      const ok = C.trainJudge(t.params, body.taps, Date.now() - t.start);
+      const r = C.applyTraining(pet, t.kind, ok); savePet(uid, pet);
+      return res(200, payload(uid, pet, { result: t.params.game, ok, msg: r.msg }));
     }
     if (path === '/register') {
-      if (pet.stage !== 'adult') return fail(400, '성체(Lv.50)가 되어야 등록할 수 있어요.');
+      if (pet.stage !== 'adult') return fail(400, '성체가 되어야 등록할 수 있어요.');
       const rows = myRows(uid);
       if (rows.some(r => r.data.born === pet.born)) return fail(409, '이미 결투장에 올라가 있는 몽글이에요.');
       let replaced = null;
@@ -117,7 +120,7 @@
         Object.keys(st.matches).forEach(k => { const [w, l] = k.split('-').map(Number); if (w === replaced.id || l === replaced.id) delete st.matches[k]; });
       }
       const now = Date.now(), eid = st.nextEntry++;
-      st.entries[eid] = { user: uid, data: entryFromPet(pet, now), wins: 0, losses: 0, created: now };
+      st.entries[eid] = { user: uid, data: C.entryFromPet(pet), wins: 0, losses: 0, created: now };
       savePet(uid, pet);
       return res(200, payload(uid, pet, { msg: replaced ? `${replaced.data.name} 대신 ${pet.name}이(가) 결투장에 올라갔어요!` : '결투장에 등록했어요!' }));
     }

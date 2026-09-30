@@ -11,7 +11,8 @@ const Core = require('./public/core.js');
 const PORT = process.env.PORT || 3000;
 // 저장 위치: 직접 지정(DATA_DIR) > Railway 저장 공간(자동) > 이 폴더 안의 data
 const DATA_DIR = process.env.DATA_DIR || process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, 'data');
-const ALLOW_FAST = process.env.ALLOW_FAST !== '0'; // 빠른 성장(테스트) 허용 여부. 끄려면 ALLOW_FAST=0
+// 빠른 성장(테스트 모드): 기본은 꺼짐(화면에 안 보임). 개발·테스트할 때만 Variables에 ALLOW_FAST=1
+const ALLOW_FAST = process.env.ALLOW_FAST === '1';
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 const db = new Database(path.join(DATA_DIR, 'mongle.db'));
@@ -96,6 +97,7 @@ function loadPet(uid) {
   const row = q.getPet.get(uid);
   if (!row) return null;
   const pet = JSON.parse(row.data);
+  if (!ALLOW_FAST) pet.fast = false;   // 테스트 모드를 끈 서버에서는 켜 둔 몽글이도 보통 속도로
   Core.advance(pet, Date.now());
   return pet;
 }
@@ -119,7 +121,6 @@ function myEntries(uid) {
   return list.filter(e => e.uid === uid).sort((a, b) => a.registeredAt - b.registeredAt)
     .map(e => Object.assign({}, e, { total: list.length }));
 }
-const publicEntry = e => { const o = Object.assign({}, e); ['uid', 'born', 'energy', 'energyAt', 'energyNow', 'tv'].forEach(k => delete o[k]); return o; };
 function payload(uid, pet, extra) {
   return Object.assign({ now: Date.now(), pet, allowFast: ALLOW_FAST, mine: myEntries(uid), maxEntries: Core.RULES.maxEntries }, extra || {});
 }
@@ -169,7 +170,25 @@ app.post('/api/pet', auth, throttle, (req, res) => {
   const pet = Core.newPet(name, Date.now());
   savePet(req.uid, pet);
   trains.delete(req.uid);
-  res.json(payload(req.uid, pet, { msg: '알을 받았어요. 품기 버튼을 눌러 주세요.' }));
+  res.json(payload(req.uid, pet, { msg: '알을 받았어요. 1시간 뒤 부화해요. 품기를 누르고 있으면 3배 빨라져요.' }));
+});
+
+// 알 품기: 누르고 있는 동안 시간 3배 (on: 누르기 시작/계속, off: 뗌). 연타 제한 없음
+app.post('/api/warm', auth, (req, res) => {
+  const pet = loadPet(req.uid);
+  if (!pet) return fail(res, 404, '먼저 알을 받아 주세요.');
+  const r = Core.warm(pet, !!req.body.on, Date.now());
+  if (!r.ok) return fail(res, 400, r.msg);
+  savePet(req.uid, pet);
+  res.json(payload(req.uid, pet, { msg: r.msg }));
+});
+// 진화 장면을 봤음 → 다음 단계 성장이 이어서 쌓일 수 있음
+app.post('/api/seen', auth, (req, res) => {
+  const pet = loadPet(req.uid);
+  if (!pet) return fail(res, 404, '먼저 알을 받아 주세요.');
+  pet.evoUnseen = null;
+  savePet(req.uid, pet);
+  res.json(payload(req.uid, pet, {}));
 });
 
 app.post('/api/action', auth, throttle, (req, res) => {
@@ -180,10 +199,10 @@ app.post('/api/action', auth, throttle, (req, res) => {
   if (trains.has(req.uid)) return fail(res, 409, '훈련 중이에요.');
   const r = Core.applyAction(pet, type);
   savePet(req.uid, pet);
-  res.json(payload(req.uid, pet, { ok: r.ok, msg: r.msg, info: r.info }));
+  res.json(payload(req.uid, pet, { ok: r.ok, msg: r.msg, info: r.info, refuse: !!r.refuse }));
 });
 
-// ---------- 훈련 (판정은 서버 시계로) ----------
+// ---------- 훈련 (시작 1번 + 끝 1번, 판정은 서버가 다시 계산) ----------
 const trains = new Map(); // uid -> {kind, params, start}
 app.post('/api/train/start', auth, throttle, (req, res) => {
   const pet = loadPet(req.uid);
@@ -193,7 +212,7 @@ app.post('/api/train/start', auth, throttle, (req, res) => {
   if (pet.stage === 'egg') return fail(res, 400, '알은 훈련할 수 없어요.');
   if (pet.stage === 'adult') return fail(res, 400, '다 자란 몽글이는 더 훈련할 수 없어요.');
   if (pet.energy < Core.RULES.trainCost) return fail(res, 400, '에너지가 부족해요.');
-  const params = Core.trainParams(pet);
+  const params = Core.trainParams(pet, null, kind);
   trains.set(req.uid, { kind, params, start: Date.now() });
   savePet(req.uid, pet);
   res.json(payload(req.uid, pet, { train: { kind, params } }));
@@ -204,28 +223,20 @@ app.post('/api/train/stop', auth, (req, res) => {
   if (!t) return fail(res, 409, '진행 중인 훈련이 없어요.');
   trains.delete(req.uid);
   const pet = loadPet(req.uid);
-  const serverElapsed = Date.now() - t.start;
-  // 화면에서 잰 시간은 통신 지연만큼 서버 시간보다 짧아야 정상. 2초 넘게 어긋나면 서버 시간으로 판정.
-  const clientElapsed = Number(req.body.elapsed);
-  const gap = serverElapsed - clientElapsed;
-  const used = Number.isFinite(clientElapsed) && gap >= 0 && gap <= 2000 ? clientElapsed : serverElapsed;
-  const result = serverElapsed > 60000 ? 'fail' : Core.judge(t.params, used);
-  const r = Core.applyTrain(pet, t.kind, result);
+  // 화면이 보낸 입력(taps)으로 서버가 같은 규칙에서 성공 수를 다시 셈
+  const ok = Core.trainJudge(t.params, req.body.taps, Date.now() - t.start);
+  const r = Core.applyTraining(pet, t.kind, ok);
   savePet(req.uid, pet);
-  res.json(payload(req.uid, pet, { result, msg: r.msg, info: r.info }));
+  res.json(payload(req.uid, pet, { result: t.params.game, ok, msg: r.msg }));
 });
 
 // ---------- 결투장 ----------
-function entryFromPet(pet, now) {
-  return Object.assign({ name: pet.name, form: pet.form, look: pet.look, type: pet.type, style: pet.style, level: pet.level,
-    usedFast: !!pet.usedFast, born: pet.born, energy: Core.RULES.arenaMax, tv: 2 }, Core.bstats(pet));
-}
 
 // 성체를 결투장에 등록. 계정당 최대 2마리, 꽉 찼으면 replace로 교체할 몽글이를 골라야 함 (교체된 몽글이 기록은 삭제)
 app.post('/api/register', auth, throttle, (req, res) => {
   const pet = loadPet(req.uid);
   if (!pet) return fail(res, 404, '먼저 알을 받아 주세요.');
-  if (pet.stage !== 'adult') return fail(res, 400, '성체(Lv.50)가 되어야 등록할 수 있어요.');
+  if (pet.stage !== 'adult') return fail(res, 400, '성체가 되어야 등록할 수 있어요.');
   const rows = q.myEntries.all(req.uid);
   if (rows.some(r => JSON.parse(r.data).born === pet.born)) return fail(res, 409, '이미 결투장에 올라가 있는 몽글이에요.');
   let replaced = null;
@@ -237,7 +248,7 @@ app.post('/api/register', auth, throttle, (req, res) => {
   const now = Date.now();
   db.transaction(() => {
     if (replaced) { q.delEntry.run(replaced.id); q.delMatches.run(replaced.id, replaced.id); }
-    q.addEntry.run(req.uid, JSON.stringify(entryFromPet(pet, now)), now);
+    q.addEntry.run(req.uid, JSON.stringify(Core.entryFromPet(pet)), now);
   })();
   savePet(req.uid, pet);
   const oldName = replaced && JSON.parse(replaced.data).name;
@@ -245,7 +256,7 @@ app.post('/api/register', auth, throttle, (req, res) => {
 });
 
 app.get('/api/arena', auth, (req, res) => {
-  res.json({ now: Date.now(), list: rankedArena(req.uid).map(publicEntry) });
+  res.json({ now: Date.now(), list: rankedArena(req.uid).map(Core.publicEntry) });
 });
 
 // 배틀: 내 결투장 몽글이(fighter) 중 하나가 상대(opponent)와 싸움
